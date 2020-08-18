@@ -1,0 +1,9 @@
+Seek(n, m)
+n = Indica en donde comienza a leer puede ser positivo o negativo. Si el positivo comienza por el inicio del archivo, si es negativo retroede del inicio del 
+    archivo hasta el final del archivo n posiciones
+
+m = si es 0 comienza desde el inicio del archivo, si es 1 comienza del inicio hacia adelante, si es 2 comienza por el final
+
+
+
+

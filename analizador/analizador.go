@@ -49,7 +49,7 @@ func analizarComando(lineaComnados string){
 
 func analizarParametros(comadno string, ){
 
-
+	fmt.Println("Hola")
 
 }
 

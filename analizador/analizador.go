@@ -7,10 +7,11 @@ import (
 	s "strings"
 )
 
-var estado int = 0
 var comandosLeidos = make([]comando, 0)
 
-var comandoExtendido bool
+var palabraInicial string = ""
+
+var comandoExtendido bool //si vienen el token "\*" es verdadero
 
 type comando struct {
 	nombre string
@@ -21,9 +22,11 @@ func analizarComando(lineaComandos string, inicial string) {
 
 	comandos := s.Split(lineaComandos, " ")
 
-	if inicial == "vacio"{
-		inicial  = comandos[0]
-
+	if inicial == "vacio" {
+		comandosLeidos = make([]comando, 0)
+		inicial, palabraInicial = comandos[0], comandos[0]
+		comandoLeido := comando{comandos[0], "inicial"}
+		comandosLeidos = append(comandosLeidos, comandoLeido)
 	}
 
 	for i := 0; i < len(comandos); i++ {
@@ -37,25 +40,26 @@ func analizarComando(lineaComandos string, inicial string) {
 
 		comandos[i] = s.ToLower(comandos[i])
 
+		fmt.Println("----------------------------- ANALIZANDO: ", i+1, "-", len(comandos), ": ", comandos[i], "-----------------------------------")
+
 		if inicial == "pausa" {
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
-
 		}
-		
-		if comandos[i]=="\\*"{
+
+		if comandos[i] == "\\*" {
 			comandoExtendido = true
-			break
-		}else if comandos[i]=="\\n"{
-			analizarParametros(comandosLeidos)
-			comandosLeidos = make([]comando, 0)
+			goto finEstados
+		}
+		if i == len(comandos)-1 {
+			comandoExtendido = false
 		}
 		switch inicial {
-		
+
 		case "exec":
 			if s.Contains(comandos[i], "-path->") {
 				param := s.TrimPrefix(comandos[i], "-path->")
 
-				fmt.Println("PATH ENCONTRADO: ", param)
+				//fmt.Println("PATH ENCONTRADO: ", param)
 
 				comandoLeido := comando{"-path", param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
@@ -67,14 +71,14 @@ func analizarComando(lineaComandos string, inicial string) {
 			if s.Contains(comandos[i], "-size->") {
 				param := s.TrimPrefix(comandos[i], "-size->")
 
-				fmt.Println("SIZE ENCONTRADO: ", param)
+				//fmt.Println("SIZE ENCONTRADO: ", param)
 
 				comandoLeido := comando{"-size", param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			} else if s.Contains(comandos[i], "-path->") {
 				param := s.TrimPrefix(comandos[i], "-path->")
 
-				fmt.Println("PATH ENCONTRADO: ", param)
+				//fmt.Println("PATH ENCONTRADO: ", param)
 
 				comandoLeido := comando{"-path", param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
@@ -82,7 +86,7 @@ func analizarComando(lineaComandos string, inicial string) {
 			} else if s.Contains(comandos[i], "-name->") {
 				param := s.TrimPrefix(comandos[i], "-name->")
 
-				fmt.Println("NAME ENCONTRADO: ", param)
+				//fmt.Println("NAME ENCONTRADO: ", param)
 
 				comandoLeido := comando{"-name", param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
@@ -90,9 +94,20 @@ func analizarComando(lineaComandos string, inicial string) {
 			} else if s.Contains(comandos[i], "-unit->") {
 				param := s.TrimPrefix(comandos[i], "-unit->")
 
-				fmt.Println("UNIT ENCONTRADO: ", param)
+				//fmt.Println("UNIT ENCONTRADO: ", param)
 
 				comandoLeido := comando{"-unit", param}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+			}
+			break
+
+		case "rmDisk":
+			if s.Contains(comandos[i], "-path->") {
+				param := s.TrimPrefix(comandos[i], "-path->")
+
+				//fmt.Println("SIZE ENCONTRADO: ", param)
+
+				comandoLeido := comando{"-path", param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			}
 			break
@@ -101,11 +116,18 @@ func analizarComando(lineaComandos string, inicial string) {
 
 	}
 
+finEstados:
+	fmt.Println("----------------------")
+	for i := 0; i < len(comandosLeidos); i++ {
+		fmt.Println("COMANDO: ", comandosLeidos[i].nombre, "VALOR", comandosLeidos[i].valor)
+	}
+	fmt.Println("----------------------")
+
 }
 
 func analizarParametros([]comando) {
 
-	fmt.Println("Hola")
+	fmt.Println("00000000000000000000000000 COMANDO EJECUTADO 00000000000000000000000000")
 
 }
 
@@ -134,13 +156,16 @@ func Leer(url string) {
 	//LEE EL ARCHIVO LINEA POR LINEA
 	for i := 0; i < len(cadena)-1; i++ {
 		fmt.Println("Linea ", i+1, ": ", cadena[i])
-		
+
 		if !comandoExtendido {
 			analizarComando(cadena[i], "vacio")
-		}else{
+		} else {
 			analizarComando(cadena[i], comandosLeidos[0].nombre)
 		}
 		
+		if !comandoExtendido {
+			analizarParametros(comandosLeidos)
+		}
 	}
 
 }

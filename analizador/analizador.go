@@ -10,16 +10,21 @@ import (
 var estado int = 0
 var comandosLeidos = make([]comando, 0)
 
+var comandoExtendido bool
+
 type comando struct {
 	nombre string
 	valor  string
 }
 
-func analizarComando(lineaComnados string) {
+func analizarComando(lineaComandos string, inicial string) {
 
-	comandos := s.Split(lineaComnados, " ")
+	comandos := s.Split(lineaComandos, " ")
 
-	var inicial string = comandos[0]
+	if inicial == "vacio"{
+		inicial  = comandos[0]
+
+	}
 
 	for i := 0; i < len(comandos); i++ {
 
@@ -30,20 +35,75 @@ func analizarComando(lineaComnados string) {
 			_ = input
 		}*/
 
+		comandos[i] = s.ToLower(comandos[i])
+
 		if inicial == "pausa" {
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
-		}
 
-		if inicial == "exec" {
-			path := s.TrimPrefix(comandos[i], "-path->")
-			fmt.Println("PATH ENCONTRADO: ", path)
+		}
+		
+		if comandos[i]=="\\*"{
+			comandoExtendido = true
+			break
+		}else if comandos[i]=="\\n"{
+			analizarParametros(comandosLeidos)
+			comandosLeidos = make([]comando, 0)
+		}
+		switch inicial {
+		
+		case "exec":
+			if s.Contains(comandos[i], "-path->") {
+				param := s.TrimPrefix(comandos[i], "-path->")
+
+				fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := comando{"-path", param}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			}
+			break
+
+		case "Mkdisk":
+			if s.Contains(comandos[i], "-size->") {
+				param := s.TrimPrefix(comandos[i], "-size->")
+
+				fmt.Println("SIZE ENCONTRADO: ", param)
+
+				comandoLeido := comando{"-size", param}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+			} else if s.Contains(comandos[i], "-path->") {
+				param := s.TrimPrefix(comandos[i], "-path->")
+
+				fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := comando{"-path", param}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(comandos[i], "-name->") {
+				param := s.TrimPrefix(comandos[i], "-name->")
+
+				fmt.Println("NAME ENCONTRADO: ", param)
+
+				comandoLeido := comando{"-name", param}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(comandos[i], "-unit->") {
+				param := s.TrimPrefix(comandos[i], "-unit->")
+
+				fmt.Println("UNIT ENCONTRADO: ", param)
+
+				comandoLeido := comando{"-unit", param}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+			}
+			break
+
 		}
 
 	}
 
 }
 
-func analizarParametros(comadno string) {
+func analizarParametros([]comando) {
 
 	fmt.Println("Hola")
 
@@ -74,7 +134,13 @@ func Leer(url string) {
 	//LEE EL ARCHIVO LINEA POR LINEA
 	for i := 0; i < len(cadena)-1; i++ {
 		fmt.Println("Linea ", i+1, ": ", cadena[i])
-		analizarComando(cadena[i])
+		
+		if !comandoExtendido {
+			analizarComando(cadena[i], "vacio")
+		}else{
+			analizarComando(cadena[i], comandosLeidos[0].nombre)
+		}
+		
 	}
 
 }

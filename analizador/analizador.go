@@ -5,47 +5,47 @@ import (
 	"fmt"
 	"os"
 	s "strings"
+
+	e "../ejecutor"
+	str "../structs"
 )
 
-var comandosLeidos = make([]comando, 0)
+var comandosLeidos = make([]str.Comando, 0)
 
 var palabraInicial string = ""
 
 var comandoExtendido bool //si vienen el token "\*" es verdadero
 
-type comando struct {
-	nombre string
-	valor  string
-}
+func analizarcomando(lineacomandos string, inicial string) {
 
-func analizarComando(lineaComandos string, inicial string) {
+	n := 0
+	_ = n
 
-	if s.Contains(lineaComandos, "\"") {
-		sinComillas := s.Split(lineaComandos, "\"")
-		fmt.Println("PALABRA SIN COMILLAS", sinComillas[1])
-	}
-
-	comandos := s.Split(lineaComandos, " ")
+	comandos := s.Split(lineacomandos, " ")
 
 	if inicial == "vacio" {
-		comandosLeidos = make([]comando, 0)
+		comandosLeidos = make([]str.Comando, 0)
 		inicial, palabraInicial = comandos[0], comandos[0]
-		comandoLeido := comando{comandos[0], "inicial"}
+		comandoLeido := str.Comando{Nombre: comandos[0], Valor: lineacomandos}
 		comandosLeidos = append(comandosLeidos, comandoLeido)
 	}
 
 	for i := 0; i < len(comandos); i++ {
 
-		/*if comandos[i] == "pausa" {
-			lector := bufio.NewReader(os.Stdin)
-			fmt.Println("En pausa ...")
-			input, _:=lector.ReadString('\n')
-			_ = input
-		}*/
-
 		comandos[i] = s.ToLower(comandos[i])
 
 		fmt.Println("----------------------------- ANALIZANDO: ", i+1, "-", len(comandos), ": ", comandos[i], "-----------------------------------")
+
+		if n == 0 && s.Contains(comandos[i], "\"") {
+			n = i
+
+		} else if i > n && n > 0 && !s.Contains(comandos[i], "\"") {
+			comandosLeidos[n].Valor = comandosLeidos[n].Valor + " " + comandos[i]
+
+		} else if i > n && s.Contains(comandos[i], "\"") {
+			comandosLeidos[n].Valor = comandosLeidos[n].Valor + " " + comandos[i]
+			n = 0
+		}
 
 		if inicial == "pausa" {
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
@@ -60,33 +60,32 @@ func analizarComando(lineaComandos string, inicial string) {
 		}
 
 		switch inicial {
-
 		case "exec":
 			if s.Contains(comandos[i], "-path->") {
 				param := s.TrimPrefix(comandos[i], "-path->")
 
 				//fmt.Println("PATH ENCONTRADO: ", param)
 
-				comandoLeido := comando{"-path", param}
+				comandoLeido := str.Comando{Nombre: "-path", Valor: param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
-
 			}
 			break
 
 		case "Mkdisk":
+
 			if s.Contains(comandos[i], "-size->") {
 				param := s.TrimPrefix(comandos[i], "-size->")
 
 				//fmt.Println("SIZE ENCONTRADO: ", param)
-
-				comandoLeido := comando{"-size", param}
+				comandoLeido := str.Comando{Nombre: "-size", Valor: param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
+
 			} else if s.Contains(comandos[i], "-path->") {
 				param := s.TrimPrefix(comandos[i], "-path->")
 
 				//fmt.Println("PATH ENCONTRADO: ", param)
 
-				comandoLeido := comando{"-path", param}
+				comandoLeido := str.Comando{Nombre: "-path", Valor: param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 
 			} else if s.Contains(comandos[i], "-name->") {
@@ -94,7 +93,7 @@ func analizarComando(lineaComandos string, inicial string) {
 
 				//fmt.Println("NAME ENCONTRADO: ", param)
 
-				comandoLeido := comando{"-name", param}
+				comandoLeido := str.Comando{Nombre: "-name", Valor: param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 
 			} else if s.Contains(comandos[i], "-unit->") {
@@ -102,9 +101,10 @@ func analizarComando(lineaComandos string, inicial string) {
 
 				//fmt.Println("UNIT ENCONTRADO: ", param)
 
-				comandoLeido := comando{"-unit", param}
+				comandoLeido := str.Comando{Nombre: "-unit", Valor: param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			}
+
 			break
 
 		case "rmDisk":
@@ -113,7 +113,7 @@ func analizarComando(lineaComandos string, inicial string) {
 
 				//fmt.Println("SIZE ENCONTRADO: ", param)
 
-				comandoLeido := comando{"-path", param}
+				comandoLeido := str.Comando{Nombre: "-path", Valor: param}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			}
 			break
@@ -125,16 +125,16 @@ func analizarComando(lineaComandos string, inicial string) {
 finEstados:
 	fmt.Println("----------------------")
 	for i := 0; i < len(comandosLeidos); i++ {
-		fmt.Println("COMANDO: ", comandosLeidos[i].nombre, "VALOR", comandosLeidos[i].valor)
+		fmt.Println("comando: ", comandosLeidos[i].Nombre, "VALOR", comandosLeidos[i].Valor)
 	}
 	fmt.Println("----------------------")
 
 }
 
-func analizarParametros([]comando) {
+func analizarParametros([]str.Comando) {
 
-	fmt.Println("00000000000000000000000000 COMANDO EJECUTADO 00000000000000000000000000")
-
+	fmt.Println("00000000000000000000000000 comando EJECUTADO 00000000000000000000000000")
+	e.CrearDisco()
 }
 
 func ejecutar() {
@@ -164,9 +164,9 @@ func Leer(url string) {
 		fmt.Println("Linea ", i+1, ": ", cadena[i])
 
 		if !comandoExtendido {
-			analizarComando(cadena[i], "vacio")
+			analizarcomando(cadena[i], "vacio")
 		} else {
-			analizarComando(cadena[i], comandosLeidos[0].nombre)
+			analizarcomando(cadena[i], comandosLeidos[0].Nombre)
 		}
 
 		if !comandoExtendido {

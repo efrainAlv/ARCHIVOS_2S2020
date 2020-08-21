@@ -3,11 +3,15 @@ package main
 import (
 	"fmt"
 
-	"./analizador"
+	//a "./analizador"
+	e "./ejecutor"
 )
 
 func main() {
 
 	fmt.Println("Hola mundo")
-	analizador.Leer("/home/helmut/Escritorio/prueba.txt")
+	//a.Leer("/home/helmut/Escritorio/prueba.txt")
+
+	e.CrearDisco()
+
 }

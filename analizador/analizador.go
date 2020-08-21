@@ -20,6 +20,11 @@ type comando struct {
 
 func analizarComando(lineaComandos string, inicial string) {
 
+	if s.Contains(lineaComandos, "\"") {
+		sinComillas := s.Split(lineaComandos, "\"")
+		fmt.Println("PALABRA SIN COMILLAS", sinComillas[1])
+	}
+
 	comandos := s.Split(lineaComandos, " ")
 
 	if inicial == "vacio" {
@@ -53,6 +58,7 @@ func analizarComando(lineaComandos string, inicial string) {
 		if i == len(comandos)-1 {
 			comandoExtendido = false
 		}
+
 		switch inicial {
 
 		case "exec":
@@ -162,7 +168,7 @@ func Leer(url string) {
 		} else {
 			analizarComando(cadena[i], comandosLeidos[0].nombre)
 		}
-		
+
 		if !comandoExtendido {
 			analizarParametros(comandosLeidos)
 		}

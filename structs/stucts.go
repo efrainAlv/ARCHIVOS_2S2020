@@ -8,25 +8,21 @@ type Comando struct {
 
 //
 type MBR struct {
-
 	Tamanio uint32
-	Fecha [19]byte
-	Firma uint32
+	Fecha   [22]byte
+	Firma   uint32
+	Part1   Particion
+	Part2   Particion
+	Part3   Particion
+	Part4   Particion
 }
 
 //
 type Particion struct {
-
-	Estado []byte
-	Tipo []byte
-	Ajuste[]byte
-	Inicio int32
-	Tamanio int32
-	Nombre [16]byte
-
-}
-
-
-func prueba(){
-
+	Estado  byte
+	Tipo    byte
+	Ajuste  byte
+	Inicio  uint32
+	Tamanio uint32
+	Nombre  [16]byte
 }

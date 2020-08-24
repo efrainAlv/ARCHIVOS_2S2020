@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
+
+	rand "math/rand"
 
 	str "../structs"
 )
@@ -34,7 +38,7 @@ crearArchivo:
 
 	//Nos posicionamos en el byte 1023 que seria el ultimo byte del archivo (el 1023 se puede cambiar dependiendo del tamaño que se quiera el archivo en bytes)
 	//seek nos posiciona en el byte 1023 al momento que queramos leer o escribir en el archivo
-	file.Seek(tamanio, 0) // segundo parametro: 0, 1, 2.     0 -> Inicio, 1-> desde donde esta el puntero, 2 -> Del fin para atras
+	file.Seek(tamanio-1, 0) // segundo parametro: 0, 1, 2.     0 -> Inicio, 1-> desde donde esta el puntero, 2 -> Del fin para atras
 
 	//creamos un buffer para pode leer y escribir en archivos
 	buffer := new(bytes.Buffer)
@@ -115,4 +119,53 @@ func crearDirectorioSiNoExiste(directorio string) {
 			fmt.Println("DIRECTORIO CREADO")
 		}
 	}
+}
+
+//
+func CrearMBR(tamanio int64, url string) {
+
+	anyo, mes, dia := time.Now().Date()
+	hora, min, sec := time.Now().Clock()
+
+	fecha := strconv.Itoa(anyo) + "-" + mes.String() + "-" + strconv.Itoa(dia)
+	horaFecha := strconv.Itoa(hora) + ":" + strconv.Itoa(min) + ":" + strconv.Itoa(sec)
+
+	var buffer bytes.Buffer
+	var fechaPart [22]byte
+
+	fecha = fecha + " " + horaFecha
+
+	fmt.Println("FECHA: ", fecha)
+
+	buffer.Reset()
+	buffer.WriteString(fecha)
+	cadena2 := buffer.Bytes()
+
+	n := 0
+	if len(fechaPart) < len(cadena2) {
+		n = len(fechaPart)
+	} else {
+		n = len(cadena2)
+	}
+	for i := 0; i < n; i++ {
+		fechaPart[i] = cadena2[i]
+	}
+
+	var p1 str.Particion
+	var p2 str.Particion
+	var p3 str.Particion
+	var p4 str.Particion
+
+	p1.Inicio = uint32(138)
+	p1.Estado = 'V'
+	p2.Estado = 'V'
+	p3.Estado = 'V'
+	p4.Estado = 'V'
+
+	mbr := str.MBR{Tamanio: uint32(tamanio), Fecha: fechaPart, Firma: rand.Uint32(), Part1: p1, Part2: p2, Part3: p3, Part4: p4}
+
+	buffer.Reset()
+	binary.Write(&buffer, binary.BigEndian, mbr)
+
+	EditarArchivo(url, buffer.Bytes(), 0)
 }

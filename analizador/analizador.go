@@ -4,9 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	s "strings"
-
 	conv "strconv"
+	s "strings"
 
 	e "../ejecutor"
 	str "../structs"
@@ -181,7 +180,9 @@ func analizarParametros(comms []str.Comando) {
 		fmt.Println("NOMBRE DE DISCO", nombre)
 		fmt.Println("UNIDAD DE DISCO", unidad)
 
-		if tamanioDisco <= int64(0) || ruta == "" || nombre == "" {
+		tamanioTotal := tamanioDisco * unidad
+
+		if tamanioTotal <= int64(0) || tamanioTotal > 2147483647 || ruta == "" || nombre == "" {
 			fmt.Println("*************************************************************")
 			fmt.Println("*                          ALERTA                           *")
 			fmt.Println("*************************************************************")
@@ -190,7 +191,13 @@ func analizarParametros(comms []str.Comando) {
 			fmt.Println("*************************************************************")
 
 		} else {
-			e.CrearDisco(+tamanioDisco*unidad, ruta, nombre)
+			e.CrearDisco(tamanioDisco*unidad, ruta, nombre)
+			e.CrearMBR(tamanioTotal, ruta+nombre)
+			/*
+				var buffer bytes.Buffer
+				buffer.WriteString("AQUI COMIENZA LA PARTICION UNO, ESPERO ESTO NO AUMENTE EL TAMAÑO DEL DISCO")
+				e.EditarArchivo(ruta+nombre, buffer.Bytes(), 138)
+			*/
 			fmt.Println("*************************************************************")
 			fmt.Println("*              ¡DISCO CREADO CON EXITO!                     *")
 			fmt.Println("*************************************************************")

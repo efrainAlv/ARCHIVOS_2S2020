@@ -1,18 +1,15 @@
 package main
 
+//CADA STRUCT PARTICION PESA 27 BYTES
+//EL MBR PESA 138 BYTES
+
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 
-	a "./analizador"
-
-	/*"bytes"
-	"encoding/binary"
-	"strconv"
-	"time"
-	"unsafe"
-	*/
-	//e "./ejecutor"
-	//str "./structs"
+	//a "./analizador"
+	e "./ejecutor"
 )
 
 type ejem struct {
@@ -23,43 +20,27 @@ type ejem struct {
 func main() {
 
 	fmt.Println("Hola mundo")
+	//a.Leer("/home/helmut/Escritorio/prueba.txt")
 
-	a.Leer("/home/helmut/Escritorio/prueba.txt")
+	buf := make([]byte, 8)
 
-	//	b := []byte{'g', 'o', 'l', 'a', 'n', 'g'}
-	/*
-		anyo, mes, dia := time.Now().Date()
-		hora, min, sec := time.Now().Clock()
+	buf[0] = 'h'
+	buf[1] = 'o'
+	buf[2] = 'l'
+	buf[3] = 'a'
+	buf[4] = 'h'
+	buf[5] = 'o'
+	buf[6] = 'l'
+	buf[7] = 'a'
+	n := binary.PutUvarint(buf, 4)
+	fmt.Println(n)
 
-		fecha := strconv.Itoa(anyo) + "-" + string(mes) + "-" + string(dia)
-		horaFecha := string(hora) + "-" + string(min) + "-" + string(sec)
+	var buffer bytes.Buffer
 
-		var nuevo str.MBR
+	binary.Write(&buffer, binary.BigEndian, buf)
 
-		var buffer bytes.Buffer
-		var cadena1 [19]byte
-		var cadena2 []byte
+	fmt.Println(buffer.Bytes())
 
-		buffer.WriteString("Hola que tal como estas")
-		cadena2 = buffer.Bytes()
-		buffer.Reset()
+	e.EditarArchivo("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", buffer.Bytes(), 138)
 
-		for i := 0; i < len(cadena1); i++ {
-			cadena1[i] = cadena2[i]
-		}
-
-		nuevo = str.MBR{Tamanio: 1000000, Fecha: cadena1, Firma: 24654}
-
-		binary.Write(&buffer, binary.BigEndian, nuevo)
-
-		fmt.Println("TAMAÑO DEL MBR", unsafe.Sizeof(nuevo))
-		fmt.Println("CODIFICADO", buffer)
-
-		fmt.Println(fecha)
-		fmt.Println(horaFecha)
-
-		fmt.Println("************************************************************************")
-
-		e.EditarArchivo("/home/helmut/Escritorio/disco.dsk", buffer.Bytes(), 1023)
-	*/
 }

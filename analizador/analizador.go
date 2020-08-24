@@ -6,6 +6,8 @@ import (
 	"os"
 	s "strings"
 
+	conv "strconv"
+
 	e "../ejecutor"
 	str "../structs"
 )
@@ -25,29 +27,30 @@ func analizarcomando(lineacomandos string, inicial string) {
 
 	if inicial == "vacio" {
 		comandosLeidos = make([]str.Comando, 0)
-		inicial, palabraInicial = comandos[0], comandos[0]
-		comandoLeido := str.Comando{Nombre: comandos[0], Valor: lineacomandos}
+		inicial, palabraInicial = s.ToLower(comandos[0]), s.ToLower(comandos[0])
+		comandoLeido := str.Comando{Nombre: inicial, Valor: lineacomandos}
 		comandosLeidos = append(comandosLeidos, comandoLeido)
 	}
 
 	for i := 0; i < len(comandos); i++ {
 
-		comandos[i] = s.ToLower(comandos[i])
+		//comandos[i] = s.ToLower(comandos[i])
 
-		fmt.Println("----------------------------- ANALIZANDO: ", i+1, "-", len(comandos), ": ", comandos[i], "-----------------------------------")
+		fmt.Println("ANALIZANDO ===========================================", comandos[i])
 
 		if n == 0 && s.Contains(comandos[i], "\"") {
 			n = i
-
-		} else if i > n && n > 0 && !s.Contains(comandos[i], "\"") {
+		} else if i > n && n > 0 && !s.Contains(comandos[i], "\"") { //fmt.Println("Valor Lista", comandosLeidos[n])
 			comandosLeidos[n].Valor = comandosLeidos[n].Valor + " " + comandos[i]
+			goto finSwitch
 
 		} else if i > n && s.Contains(comandos[i], "\"") {
 			comandosLeidos[n].Valor = comandosLeidos[n].Valor + " " + comandos[i]
+			//fmt.Println("N ES DIFERENTE DE I, Y CONTIENE COMILLAS")
 			n = 0
 		}
 
-		if inicial == "pausa" {
+		if inicial == "pause" {
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
 		}
 
@@ -61,80 +64,141 @@ func analizarcomando(lineacomandos string, inicial string) {
 
 		switch inicial {
 		case "exec":
-			if s.Contains(comandos[i], "-path->") {
-				param := s.TrimPrefix(comandos[i], "-path->")
-
+			if s.Contains(s.ToLower(comandos[i]), "-path->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
 				//fmt.Println("PATH ENCONTRADO: ", param)
 
-				comandoLeido := str.Comando{Nombre: "-path", Valor: param}
+				comandoLeido := str.Comando{Nombre: "-path", Valor: arr[1]}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			}
 			break
 
-		case "Mkdisk":
+		case "mkdisk":
 
-			if s.Contains(comandos[i], "-size->") {
-				param := s.TrimPrefix(comandos[i], "-size->")
+			if s.Contains(s.ToLower(comandos[i]), "-size->") {
+
+				arr := s.Split(comandos[i], "->")
+
+				//param := s.TrimPrefix(comandos[i], "-size->")
 
 				//fmt.Println("SIZE ENCONTRADO: ", param)
-				comandoLeido := str.Comando{Nombre: "-size", Valor: param}
+				comandoLeido := str.Comando{Nombre: "-size", Valor: arr[1]}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 
-			} else if s.Contains(comandos[i], "-path->") {
-				param := s.TrimPrefix(comandos[i], "-path->")
-
+			} else if s.Contains(s.ToLower(comandos[i]), "-path->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
 				//fmt.Println("PATH ENCONTRADO: ", param)
 
-				comandoLeido := str.Comando{Nombre: "-path", Valor: param}
+				comandoLeido := str.Comando{Nombre: "-path", Valor: arr[1]}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 
-			} else if s.Contains(comandos[i], "-name->") {
-				param := s.TrimPrefix(comandos[i], "-name->")
-
+			} else if s.Contains(s.ToLower(comandos[i]), "-name->") {
+				//param := s.TrimPrefix(comandos[i], "-name->")
+				arr := s.Split(comandos[i], "->")
 				//fmt.Println("NAME ENCONTRADO: ", param)
 
-				comandoLeido := str.Comando{Nombre: "-name", Valor: param}
+				comandoLeido := str.Comando{Nombre: "-name", Valor: arr[1]}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 
-			} else if s.Contains(comandos[i], "-unit->") {
-				param := s.TrimPrefix(comandos[i], "-unit->")
-
+			} else if s.Contains(s.ToLower(comandos[i]), "-unit->") {
+				//param := s.TrimPrefix(comandos[i], "-unit->")
+				arr := s.Split(comandos[i], "->")
 				//fmt.Println("UNIT ENCONTRADO: ", param)
 
-				comandoLeido := str.Comando{Nombre: "-unit", Valor: param}
+				comandoLeido := str.Comando{Nombre: "-unit", Valor: arr[1]}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			}
 
 			break
 
-		case "rmDisk":
-			if s.Contains(comandos[i], "-path->") {
-				param := s.TrimPrefix(comandos[i], "-path->")
-
+		case "rmdisk":
+			if s.Contains(s.ToLower(comandos[i]), "-path->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
 				//fmt.Println("SIZE ENCONTRADO: ", param)
 
-				comandoLeido := str.Comando{Nombre: "-path", Valor: param}
+				comandoLeido := str.Comando{Nombre: "-path", Valor: arr[1]}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			}
 			break
 
 		}
 
+	finSwitch:
 	}
 
 finEstados:
-	fmt.Println("----------------------")
+	//fmt.Println("----------------------")
 	for i := 0; i < len(comandosLeidos); i++ {
 		fmt.Println("comando: ", comandosLeidos[i].Nombre, "VALOR", comandosLeidos[i].Valor)
 	}
-	fmt.Println("----------------------")
+	//fmt.Println("----------------------")
 
 }
 
-func analizarParametros([]str.Comando) {
+func analizarParametros(comms []str.Comando) {
 
-	fmt.Println("00000000000000000000000000 comando EJECUTADO 00000000000000000000000000")
-	e.CrearDisco()
+	comandoInicial := comms[0].Nombre
+
+	switch comandoInicial {
+
+	case "mkdisk":
+
+		var tamanioDisco int64 = 0
+		var ruta string = ""
+		var nombre string = ""
+		var unidad int64 = 1048576
+
+		for i := 1; i < len(comms); i++ {
+			if comms[i].Nombre == "-size" {
+				tamanio, err := conv.ParseInt(comms[i].Valor, 10, 64)
+				if err != nil {
+					panic(err)
+				}
+				tamanioDisco = tamanio
+			} else if comms[i].Nombre == "-path" {
+				if s.Contains(comms[i].Valor, "\"") {
+					nuevoS := s.Replace(comms[i].Valor, "\"", "", 2)
+					ruta = nuevoS
+				} else {
+					ruta = comms[i].Valor
+				}
+
+			} else if comms[i].Nombre == "-name" {
+				nombre = comms[i].Valor
+			} else if comms[i].Nombre == "-unit" {
+				if comms[i].Valor == "k" {
+					unidad = 1024
+				} else if comms[i].Valor == "m" {
+					unidad = 1024 * 1024
+				}
+			}
+		}
+		fmt.Println("TAMAÑO DE DISCO", tamanioDisco)
+		fmt.Println("URL DE DISCO", ruta)
+		fmt.Println("NOMBRE DE DISCO", nombre)
+		fmt.Println("UNIDAD DE DISCO", unidad)
+
+		if tamanioDisco <= int64(0) || ruta == "" || nombre == "" {
+			fmt.Println("*************************************************************")
+			fmt.Println("*                          ALERTA                           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("*   EL TAMAÑO DEL DISCO, LA RUTA O EL NOMBRE DEL DISCO NO   *")
+			fmt.Println("*                  NOS SON VALIDOS                          *")
+			fmt.Println("*************************************************************")
+
+		} else {
+			e.CrearDisco(+tamanioDisco*unidad, ruta, nombre)
+			fmt.Println("*************************************************************")
+			fmt.Println("*              ¡DISCO CREADO CON EXITO!                     *")
+			fmt.Println("*************************************************************")
+		}
+		break
+
+	}
+
 }
 
 func ejecutar() {

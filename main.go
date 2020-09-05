@@ -4,43 +4,54 @@ package main
 //EL MBR PESA 138 BYTES
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
-
+	/*
+		"os"
+		"log"
+		"bytes"
+	*/
 	//a "./analizador"
 	e "./ejecutor"
+	str "./structs"
 )
 
-type ejem struct {
-	nombre string
-	valor  int
-}
+//
+var ParticionesMontadas []str.ParticionMontada
 
 func main() {
 
 	fmt.Println("Hola mundo")
 	//a.Leer("/home/helmut/Escritorio/prueba.txt")
+	//fun()
+	e.MontarParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", "hola Mundaa")
 
-	buf := make([]byte, 8)
+}
 
-	buf[0] = 'h'
-	buf[1] = 'o'
-	buf[2] = 'l'
-	buf[3] = 'a'
-	buf[4] = 'h'
-	buf[5] = 'o'
-	buf[6] = 'l'
-	buf[7] = 'a'
-	n := binary.PutUvarint(buf, 4)
-	fmt.Println(n)
+func fun() {
 
-	var buffer bytes.Buffer
+	var tipo byte = 'P'
+	var ajuste byte = 'B'
+	var tamanio uint32 = uint32(50)
+	var nombre [16]byte
+	nombre[0] = 'h'
+	nombre[1] = 'o'
+	nombre[2] = 'l'
+	nombre[3] = 'a'
+	nombre[4] = ' '
+	nombre[5] = 'M'
+	nombre[6] = 'u'
+	nombre[7] = 'n'
+	nombre[8] = 'd'
+	nombre[9] = 'a'
 
-	binary.Write(&buffer, binary.BigEndian, buf)
+	fmt.Println(uint16(9999))
 
-	fmt.Println(buffer.Bytes())
+	e.CrearParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", tipo, ajuste, tamanio, nombre)
+	contenido, err := e.LeerDisco("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk")
+	if err != nil {
+		panic(err)
+	}
 
-	e.EditarArchivo("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", buffer.Bytes(), 138)
+	e.MontarMBR(contenido)
 
 }

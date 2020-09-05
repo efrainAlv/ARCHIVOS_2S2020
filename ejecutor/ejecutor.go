@@ -1,26 +1,41 @@
 package ejecutor
 
+/*
+
+138 bytes del MBR
+27 bytes de cada particion
+30 bytes de la infor del MBR
+
+estado 0 	-> 30
+tipo 1 		-> 31
+ajuste 2
+inicio 3
+tamanio 7
+nombre 23
+
+
+*/
+
 import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io/ioutil"
 	"log"
+	rand "math/rand"
 	"os"
 	"strconv"
 	"time"
 
-	rand "math/rand"
-
 	str "../structs"
 )
 
-type ejemplo struct {
-	letra  int8
-	numero int16
-}
-
 var comandos []str.Comando
+
+const tamanioMBR = 138
+const tamanioPart = 27
+const tamanioInfoMBR = 30
 
 //
 func CrearDisco(tamanio int64, url string, nombre string) {
@@ -92,7 +107,7 @@ func LeerDisco(url string) ([]byte, error) {
 }
 
 //
-func EditarArchivo(url string, cadena []byte, inicio int64) {
+func editarArchivo(url string, cadena []byte, inicio int64) {
 	// Read Write Mode
 	file, err := os.OpenFile(url, os.O_RDWR, 0644)
 
@@ -156,16 +171,319 @@ func CrearMBR(tamanio int64, url string) {
 	var p3 str.Particion
 	var p4 str.Particion
 
-	p1.Inicio = uint32(138)
-	p1.Estado = 'V'
-	p2.Estado = 'V'
-	p3.Estado = 'V'
-	p4.Estado = 'V'
+	p1.Inicio = uint32(tamanioMBR)
+	p1.Estado = 1
+	p2.Estado = 1
+	p3.Estado = 1
+	p4.Estado = 1
 
 	mbr := str.MBR{Tamanio: uint32(tamanio), Fecha: fechaPart, Firma: rand.Uint32(), Part1: p1, Part2: p2, Part3: p3, Part4: p4}
+
+	//fmt.Println("VERIFICANDO TAMAÑO DEL DISCO: ", mbr.Tamanio)
 
 	buffer.Reset()
 	binary.Write(&buffer, binary.BigEndian, mbr)
 
-	EditarArchivo(url, buffer.Bytes(), 0)
+	editarArchivo(url, buffer.Bytes(), 0)
+
+}
+
+//
+func MontarMBR(contenidoDisco []byte) (MBR str.MBR) {
+
+	mbr := str.MBR{}
+
+	var tamanio = contenidoDisco[:4]
+	mbr.Tamanio = convertirBinario(tamanio)
+
+	var fecha = contenidoDisco[4:26]
+
+	for i := 0; i < 22; i++ {
+		mbr.Fecha[i] = fecha[i]
+	}
+
+	var firma = contenidoDisco[26:30]
+	mbr.Firma = convertirBinario(firma)
+
+	//fmt.Printf("%c", mbr)
+
+	mbr = montarParticionesAlMBR(contenidoDisco, mbr)
+
+	fmt.Println(mbr)
+	return mbr
+}
+
+func montarParticionesAlMBR(contenidoDisco []byte, mbr str.MBR) (mBR str.MBR) {
+
+	n := 0
+	for i := 0; i < 4; i++ {
+
+		part := contenidoDisco[30+n : 57+n]
+		partN := str.Particion{}
+
+		estadoP := part[0:1]
+		partN.Estado = estadoP[0]
+
+		tipoP := part[1:2]
+		partN.Tipo = tipoP[0]
+
+		ajusteP := part[2:3]
+		partN.Ajuste = ajusteP[0]
+
+		inicioP := part[3:7]
+		partN.Inicio = convertirBinario(inicioP)
+
+		tamanioP := part[7:11]
+		partN.Tamanio = convertirBinario(tamanioP)
+
+		var nombre = part[11:27]
+		for k := 0; k < 16; k++ {
+			partN.Nombre[k] = nombre[k]
+		}
+
+		switch i {
+		case 0:
+			mbr.Part1 = partN
+			break
+
+		case 1:
+			mbr.Part2 = partN
+			break
+
+		case 2:
+			mbr.Part3 = partN
+			break
+
+		case 3:
+			mbr.Part4 = partN
+			break
+
+		}
+		n += 27
+	}
+
+	return mbr
+
+}
+
+//
+func CrearParticion(url string, tipo byte, ajuste byte, tamanio uint32, nombre [16]byte) (paso bool) {
+
+	contenidoDisco, err := LeerDisco(url)
+
+	if err != nil {
+		panic(err)
+	}
+
+	mbr := MontarMBR(contenidoDisco)
+
+	var tipoDisponible = false
+	var nombreDisponible = true
+	var espacioDisp uint32 = 0
+	inicioPart := uint32(138)
+	numeroPart := 0
+
+	n := 0
+	for i := 0; i < 4; i++ {
+		if getParticion(mbr, i).Tipo == tipo {
+			n++
+		}
+		if getParticion(mbr, i).Nombre == nombre {
+			nombreDisponible = false
+		}
+	}
+
+	if nombreDisponible {
+		if tipo == 'E' && n < 1 {
+			tipoDisponible = true
+
+		} else if tipo == 'P' && n < 3 {
+			tipoDisponible = true
+
+		} else {
+			fmt.Println("*************************************************************")
+			fmt.Println("*                          ALERTA                           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("*      NO HAY ESPACIO PARA UNA PARTICION DEL TIPO ", fmt.Sprintf("%c", tipo), "       *")
+			fmt.Println("*************************************************************")
+		}
+	} else {
+
+		fmt.Println("*************************************************************")
+		fmt.Println("*                          ALERTA                           *")
+		fmt.Println("*************************************************************")
+		fmt.Println("*  EL NOMBRE DE LA PARTICION YA ESXISTE, INTENTE CON OTRO   *")
+		fmt.Println("*************************************************************")
+		goto final
+	}
+
+	if tipoDisponible {
+
+		for i := 0; i < 4; i++ {
+			if getParticion(mbr, i).Estado == 1 {
+				espacioDisp, inicioPart = consultarEspacioDisponible(mbr, i)
+				if espacioDisp >= tamanio {
+					numeroPart = i
+					break
+				} else {
+					espacioDisp = 0
+				}
+
+			}
+		}
+
+	}
+
+	if espacioDisp > 0 {
+		particion := getParticion(mbr, numeroPart)
+
+		particion.Estado = 0
+		particion.Tipo = tipo
+		particion.Ajuste = ajuste
+		particion.Inicio = inicioPart
+		particion.Tamanio = tamanio
+		particion.Nombre = nombre
+
+		var buffer bytes.Buffer
+		binary.Write(&buffer, binary.BigEndian, particion)
+		posicion := tamanioInfoMBR + tamanioPart*(numeroPart)
+		editarArchivo(url, buffer.Bytes(), int64(posicion))
+		goto final
+	}
+
+	fmt.Println("")
+	fmt.Println("*************************************************************")
+	fmt.Println("*                          ALERTA                           *")
+	fmt.Println("*************************************************************")
+	fmt.Println("*       NO HAY ESPACIO SUFICIENTE PARA LA PARTICION         *")
+	fmt.Println("*************************************************************")
+	fmt.Println("")
+
+final:
+	return false
+}
+
+//
+func MontarParticion(url string, nombre string) {
+
+	contenidoDisco, err := LeerDisco(url)
+	if err != nil {
+		panic(err)
+	}
+
+	mbr := MontarMBR(contenidoDisco)
+	var buffer bytes.Buffer
+	buffer.WriteString(nombre)
+	var nombrePart [16]byte
+	var nombreTemp = buffer.Bytes()
+	for i := 0; i < len(nombre); i++ {
+		nombrePart[i] = nombreTemp[i]
+	}
+
+	nombreExiste := false
+	for i := 0; i < 4; i++ {
+		if getParticion(mbr, i).Nombre == nombrePart {
+			nombreExiste = true
+		}
+	}
+
+	if nombreExiste {
+
+		
+
+	} else {
+		fmt.Println("*************************************************************")
+		fmt.Println("*                          ALERTA                           *")
+		fmt.Println("*************************************************************")
+		fmt.Println("*         LA PARTICION NO EXISTE DENTRO DEL DISCO           *")
+		fmt.Println("*************************************************************")
+	}
+
+}
+
+func getParticion(mbr str.MBR, n int) (selecPart str.Particion) {
+
+	n++
+	switch n {
+	case 1:
+		return mbr.Part1
+
+	case 2:
+		return mbr.Part2
+
+	case 3:
+		return mbr.Part3
+
+	case 4:
+		return mbr.Part4
+	}
+
+	return
+}
+
+func consultarEspacioDisponible(mbr str.MBR, ini int) (espacioDisp uint32, inicioPart uint32) {
+
+	limite := mbr.Tamanio
+	inicio := uint32(138)
+
+	for i := ini; i > -1; i-- {
+		if part := getParticion(mbr, i); part.Estado == 0 {
+			inicio = part.Inicio + part.Tamanio
+			break
+		}
+	}
+
+	for i := ini + 1; i < 4; i++ {
+		if part := getParticion(mbr, i); part.Estado == 0 {
+			limite = part.Inicio
+			break
+		}
+	}
+
+	espacioDisp = limite - inicio
+
+	return espacioDisp, inicio
+}
+
+func convertirBinario(numeros []byte) (numerosTraducidos uint32) {
+
+	n := len(numeros)
+	numeroBinario := ""
+
+	for i := 0; i < n; i++ {
+		temp := fmt.Sprintf("%b", numeros[i])
+
+		nTemp := len(temp)
+		for j := 0; j < 8-nTemp; j++ {
+			temp = "0" + temp
+			//fmt.Println(i,".- ", temp)
+		}
+		numeroBinario = numeroBinario + temp
+		//fmt.Println(numeroBinario)
+	}
+
+	numeroTraducido, _ := strconv.ParseUint(numeroBinario, 2, 32)
+
+	//fmt.Println("BINARIO", numeroBinario, "DECIMAL", numeroTraducido)
+	return uint32(numeroTraducido)
+}
+
+//
+func CrearGraficaMBR(contenidoDisco []byte) {
+
+	//mbr := MontarMBR(contenidoDisco)
+
+	file, err := os.Create("/home/helmut/Escritorio/graficaMBR.txt")
+	defer file.Close()
+	if err != nil {
+		panic(err)
+	}
+
+	graph := ""
+
+	errr := ioutil.WriteFile("/home/helmut/Escritorio/graficaMBR.txt", []byte(graph), 0666)
+	if errr != nil {
+		panic(errr)
+	}
+
 }

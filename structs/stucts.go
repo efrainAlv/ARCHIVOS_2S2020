@@ -5,22 +5,22 @@ import (
 )
 
 //
-const TamSuperBoot = unsafe.Sizeof(SuperBoot{})
+var TamSuperBoot = unsafe.Sizeof(SuperBoot{})
 
 //
-const TamAVD = unsafe.Sizeof(AVD{})
+var TamAVD = unsafe.Sizeof(AVD{})
 
 //
-const TamDetalleDirect = unsafe.Sizeof(DetalleDirectorio{})
+var TamDetalleDirect = unsafe.Sizeof(DetalleDirectorio{})
 
 //
-const TamInodo = unsafe.Sizeof(Inodo{})
+var TamInodo = unsafe.Sizeof(Inodo{})
 
 //
-const TamBloque = unsafe.Sizeof(Bloque{})
+var TamBloque = unsafe.Sizeof(Bloque{})
 
 //
-const TamBitacora = unsafe.Sizeof(Bitacora{})
+var TamBitacora = unsafe.Sizeof(Bitacora{})
 
 //
 type Comando struct {
@@ -42,6 +42,18 @@ type MBR struct {
 }
 
 /*
+	Tamaño real = 138bytes
+*/
+type EBR struct {
+	Estado       byte
+	Ajuste       byte
+	Inicio       uint32
+	Tamanio      uint32
+	SiguienteEBR uint32
+	Nombre       [16]byte
+}
+
+/*
 	Tamaño real = 27bytes
 */
 type Particion struct {
@@ -54,11 +66,14 @@ type Particion struct {
 }
 
 //
+var ParticionesMontadas []ParticionMontada
+
+//
 type ParticionMontada struct {
-	particion Particion
-	letra     byte
-	ruta string
-	numero uint16
+	Particion Particion
+	Letra     byte
+	Numero    uint16
+	Ruta      string
 }
 
 /*
@@ -71,21 +86,21 @@ type SuperBoot struct {
 	CantidadInodos               uint32
 	CantidadBloques              uint32
 	CantidadAVDLibres            uint32
-	CantidadDetalleDirecttLibres uint32
+	CantidadDetalleDirectLibres uint32
 	CantidadInodosLibres         uint32
 	CantidadBloquesLibres        uint32
 	FechaCreacion                [22]byte
 	FechaUltimoMontaje           [22]byte
 	NumeroMontajes               uint16
-	ApuntarBitMapAVD             uint32
+	ApuntadorBitMapAVD             uint32
 	ApuntadorAVD                 uint32
-	ApuntarBitMapDetalleDirect   uint32
+	ApuntadorBitMapDetalleDirect   uint32
 	ApuntadorDetalleDirect       uint32
-	ApuntarBitMapInodos          uint32
+	ApuntadorBitMapInodos          uint32
 	ApuntadorInodos              uint32
-	ApuntarBitMapBloques         uint32
+	ApuntadorBitMapBloques         uint32
 	ApuntadorBloques             uint32
-	ApuntadoBitacora             uint32
+	ApuntadorBitacora             uint32
 	TamanioAVD                   uint32
 	TamanioDetalleDirect         uint32
 	TamanioInodo                 uint32

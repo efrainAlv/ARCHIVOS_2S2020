@@ -16,15 +16,46 @@ import (
 )
 
 //
-var ParticionesMontadas []str.ParticionMontada
 
 func main() {
 
 	fmt.Println("Hola mundo")
 	//a.Leer("/home/helmut/Escritorio/prueba.txt")
 	//fun()
-	e.MontarParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", "hola Mundaa")
+	//ParticionesMontadas = append(ParticionesMontadas)
+	//e.MontarParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", "hola Munda")
 
+	str.ParticionesMontadas = append(str.ParticionesMontadas, str.ParticionMontada{Particion: str.Particion{Inicio: 500, Tamanio:8000}, Letra: 97, Numero: 1, Ruta: "/home/helmut/Escritorio/Mis Discos/Disco_3.dsk"})
+	str.ParticionesMontadas = append(str.ParticionesMontadas, str.ParticionMontada{Particion: str.Particion{}, Letra: 100, Numero: 2, Ruta: "/home/helmut/Escritorio/Mis Discos/Disco_3.dsk"})
+	str.ParticionesMontadas = append(str.ParticionesMontadas, str.ParticionMontada{Particion: str.Particion{}, Letra: 99, Numero: 3, Ruta: "/home/helmut/Escritorio/Mis Discos/Disco_3.dsk"})
+	str.ParticionesMontadas = append(str.ParticionesMontadas, str.ParticionMontada{Particion: str.Particion{}, Letra: 98, Numero: 4, Ruta: "/home/helmut/Escritorio/Mis Discos/Disco_3.dsk"})
+	//e.MontarParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", "hola Munda")
+	e.FormatearParticion("dva1", "full")
+
+	/*
+		fmt.Println("")
+		fmt.Println("PARTICIONES:")
+		for i := 0; i < len(str.ParticionesMontadas); i++ {
+			fmt.Println(str.ParticionesMontadas[i])
+		}
+
+		e.DesmontarParticion("vda1")
+		fmt.Println("")
+		fmt.Println("PARTICIONES:")
+		for i := 0; i < len(str.ParticionesMontadas); i++ {
+			fmt.Println(str.ParticionesMontadas[i])
+		}
+	*/
+
+	fmt.Println("CANTIDAD DE ESTRUCTURAS", e.CalcularNumeroDeEstructuras(2000000))
+	fmt.Println(str.TamSuperBoot)
+	fmt.Println(str.TamAVD)
+	fmt.Println(str.TamDetalleDirect)
+	fmt.Println(str.TamInodo)
+	fmt.Println(str.TamBloque)
+	fmt.Println(str.TamBitacora)
+
+	//97-122
 }
 
 func fun() {

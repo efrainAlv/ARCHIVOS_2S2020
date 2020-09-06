@@ -26,9 +26,11 @@ import (
 	rand "math/rand"
 	"os"
 	"strconv"
+	s "strings"
 	"time"
 
 	str "../structs"
+	//a "../analizador"
 )
 
 var comandos []str.Comando
@@ -138,33 +140,7 @@ func crearDirectorioSiNoExiste(directorio string) {
 
 //
 func CrearMBR(tamanio int64, url string) {
-
-	anyo, mes, dia := time.Now().Date()
-	hora, min, sec := time.Now().Clock()
-
-	fecha := strconv.Itoa(anyo) + "-" + mes.String() + "-" + strconv.Itoa(dia)
-	horaFecha := strconv.Itoa(hora) + ":" + strconv.Itoa(min) + ":" + strconv.Itoa(sec)
-
-	var buffer bytes.Buffer
-	var fechaPart [22]byte
-
-	fecha = fecha + " " + horaFecha
-
-	fmt.Println("FECHA: ", fecha)
-
-	buffer.Reset()
-	buffer.WriteString(fecha)
-	cadena2 := buffer.Bytes()
-
-	n := 0
-	if len(fechaPart) < len(cadena2) {
-		n = len(fechaPart)
-	} else {
-		n = len(cadena2)
-	}
-	for i := 0; i < n; i++ {
-		fechaPart[i] = cadena2[i]
-	}
+	fechaPart := generarFecha()
 
 	var p1 str.Particion
 	var p2 str.Particion
@@ -181,7 +157,7 @@ func CrearMBR(tamanio int64, url string) {
 
 	//fmt.Println("VERIFICANDO TAMAÑO DEL DISCO: ", mbr.Tamanio)
 
-	buffer.Reset()
+	var buffer bytes.Buffer
 	binary.Write(&buffer, binary.BigEndian, mbr)
 
 	editarArchivo(url, buffer.Bytes(), 0)
@@ -380,16 +356,38 @@ func MontarParticion(url string, nombre string) {
 		nombrePart[i] = nombreTemp[i]
 	}
 
+	part := str.Particion{}
 	nombreExiste := false
 	for i := 0; i < 4; i++ {
-		if getParticion(mbr, i).Nombre == nombrePart {
+		if part = getParticion(mbr, i); part.Nombre == nombrePart {
 			nombreExiste = true
+			break
 		}
 	}
 
 	if nombreExiste {
 
-		
+		if len(str.ParticionesMontadas) == 0 {
+			str.ParticionesMontadas = append(str.ParticionesMontadas, str.ParticionMontada{Particion: part, Letra: 97, Numero: 1, Ruta: url})
+		} else {
+
+			n := 0
+			codigo := byte(97)
+			for i := 0; i < len(str.ParticionesMontadas); i++ {
+				if str.ParticionesMontadas[i].Ruta == url {
+					n++
+				}
+			}
+
+			for i := 0; i < len(str.ParticionesMontadas); i++ {
+				if str.ParticionesMontadas[i].Letra == codigo && str.ParticionesMontadas[i].Ruta == url {
+					codigo += byte(1)
+					i = 0
+				}
+			}
+
+			str.ParticionesMontadas = append(str.ParticionesMontadas, str.ParticionMontada{Particion: part, Letra: codigo, Numero: uint16(n + 1), Ruta: url})
+		}
 
 	} else {
 		fmt.Println("*************************************************************")
@@ -399,6 +397,205 @@ func MontarParticion(url string, nombre string) {
 		fmt.Println("*************************************************************")
 	}
 
+}
+
+//
+func DesmontarParticion(idParticion string) {
+
+	letra := idParticion[2]
+	numero := idParticion[3:len(idParticion)]
+	codigoLetra, err := strconv.ParseUint(numero, 10, 16)
+	if err != nil {
+		panic(err)
+	}
+
+	desmontado := false
+	for i := 0; i < len(str.ParticionesMontadas); i++ {
+		if str.ParticionesMontadas[i].Letra == byte(letra) && str.ParticionesMontadas[i].Numero == uint16(codigoLetra) {
+			if i == len(str.ParticionesMontadas) {
+				copy(str.ParticionesMontadas, str.ParticionesMontadas[:i-1])
+				desmontado = true
+				break
+			} else {
+				str.ParticionesMontadas = append(str.ParticionesMontadas[:i], str.ParticionesMontadas[i+1:]...)
+				desmontado = true
+				break
+			}
+		}
+	}
+
+	if desmontado {
+		fmt.Println("PARTICION DESMONTADA")
+	} else {
+		fmt.Println("PARTICION NO ENCONTRADA")
+	}
+
+}
+
+//
+func FormatearParticion(idPart string, tipo string) {
+
+	part := getParticionByID(idPart)
+	if tipo == "fast" {
+
+	} else if tipo == "full" {
+		var cadena []byte
+		for i := 0; i < int(part.Particion.Tamanio); i++ {
+			cadena = append(cadena, 0)
+		}
+
+		rutaDisco := s.Split(part.Ruta, "/")
+		editarArchivo(part.Ruta, cadena, int64(part.Particion.Inicio))
+		superBoot := CrearSuperBoot(part.Particion.Tamanio, rutaDisco[len(rutaDisco)])
+		var buffer bytes.Buffer
+		binary.Write(&buffer, binary.BigEndian, superBoot)
+		editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Particion.Inicio))
+	}
+
+}
+
+//
+func CrearSuperBoot(tamanioPart uint32, nombre string) str.SuperBoot {
+
+	nEstructuras := calcularNumeroDeEstructuras(tamanioPart)
+
+	var nombreDisco [20]byte
+	for i := 0; i < len(nombreDisco); i++ {
+		nombreDisco[i] = nombre[i]
+	}
+	cantidadAVD := nEstructuras
+	cantidadDetalleDirect := nEstructuras
+	cantidadInodos := nEstructuras * 5
+	cantidadBloques := nEstructuras * 20
+	cantidadAVDLibres := cantidadAVD
+	cantidadDetalleDirecttLibres := cantidadDetalleDirect
+	cantidadInodosLibres := cantidadInodos
+	cantidadBloquesLibres := cantidadBloques
+
+	fechaCreacion := generarFecha()
+	fechaUltimoMontaje := generarFecha()
+	numeroMontajes := uint16(1)
+
+	apuntadorBitMapAVD := uint32(str.TamSuperBoot)
+	apuntadorAVD := apuntadorBitMapAVD + cantidadAVD
+	apuntadorBitMapDetalleDirect := apuntadorAVD + cantidadAVD*uint32(str.TamAVD)
+	apuntadorDetalleDirect := apuntadorBitMapDetalleDirect + cantidadDetalleDirect
+	apuntadorBitMapInodos := apuntadorDetalleDirect + cantidadDetalleDirect*uint32(str.TamDetalleDirect)
+	apuntadorInodos := apuntadorBitMapInodos + cantidadDetalleDirect
+	apuntadorBitMapBloques := apuntadorInodos + cantidadInodos*uint32(str.TamInodo)
+	apuntadorBloques := apuntadorBitMapBloques + cantidadBloques
+	apuntadorBitacora := apuntadorBloques + cantidadBloques*uint32(str.TamBloque)
+
+	tamanioAVD := uint32(str.TamAVD)
+	tamanioDetalleDirect := uint32(str.TamDetalleDirect)
+	tamanioInodo := uint32(str.TamInodo)
+	tamanioBloque := uint32(str.TamBloque)
+	tamanioBitacora := uint32(str.TamBitacora)
+
+	primerAVDLibre := apuntadorAVD
+	primerDetalleDirectLibre := apuntadorDetalleDirect
+	primerInodoLibre := apuntadorInodos
+	primerBloqueLibre := apuntadorBloques
+
+	superboot := str.SuperBoot{
+		NombreDisco:                  nombreDisco,
+		CantidadAVD:                  cantidadAVD,
+		CantidadDetalleDirect:        cantidadDetalleDirect,
+		CantidadInodos:               cantidadInodos,
+		CantidadBloques:              cantidadBloques,
+		CantidadAVDLibres:            cantidadAVDLibres,
+		CantidadDetalleDirectLibres:  cantidadDetalleDirecttLibres,
+		CantidadInodosLibres:         cantidadInodosLibres,
+		CantidadBloquesLibres:        cantidadBloquesLibres,
+		FechaCreacion:                fechaCreacion,
+		FechaUltimoMontaje:           fechaUltimoMontaje,
+		NumeroMontajes:               numeroMontajes,
+		ApuntadorAVD:                 apuntadorAVD,
+		ApuntadorBitMapAVD:           apuntadorBitMapAVD,
+		ApuntadorDetalleDirect:       apuntadorDetalleDirect,
+		ApuntadorBitMapDetalleDirect: apuntadorBitMapDetalleDirect,
+		ApuntadorInodos:              apuntadorInodos,
+		ApuntadorBitMapInodos:        apuntadorBitMapInodos,
+		ApuntadorBloques:             apuntadorBloques,
+		ApuntadorBitMapBloques:       apuntadorBitMapBloques,
+		ApuntadorBitacora:            apuntadorBitacora,
+		TamanioAVD:                   tamanioAVD,
+		TamanioDetalleDirect:         tamanioDetalleDirect,
+		TamanioInodo:                 tamanioInodo,
+		TamanioBloque:                tamanioBloque,
+		TamanioBitacora:              tamanioBitacora,
+		PrimerAVDLibre:               primerAVDLibre,
+		PrimerDetalleDirectLibre:     primerDetalleDirectLibre,
+		PrimerInodoLibre:             primerInodoLibre,
+		PrimerBloqueLibre:            primerBloqueLibre,
+		NumeroMagico:                 uint32(20171350)}
+
+	return superboot
+}
+
+func generarFecha() (fechaReturn [22]byte) {
+
+	anyo, mes, dia := time.Now().Date()
+	hora, min, sec := time.Now().Clock()
+
+	fecha := strconv.Itoa(anyo) + "-" + mes.String() + "-" + strconv.Itoa(dia)
+	horaFecha := strconv.Itoa(hora) + ":" + strconv.Itoa(min) + ":" + strconv.Itoa(sec)
+
+	var buffer bytes.Buffer
+	fecha = fecha + " " + horaFecha
+
+	//fmt.Println("FECHA: ", fecha)
+
+	buffer.Reset()
+	buffer.WriteString(fecha)
+	cadena2 := buffer.Bytes()
+
+	n := 0
+	if len(fechaReturn) < len(cadena2) {
+		n = len(fechaReturn)
+	} else {
+		n = len(cadena2)
+	}
+	for i := 0; i < n; i++ {
+		fechaReturn[i] = cadena2[i]
+	}
+
+	return fechaReturn
+}
+
+//
+func calcularNumeroDeEstructuras(tamanioPart uint32) (cantidad uint32) {
+
+	dos := str.TamAVD
+	tres := str.TamDetalleDirect
+	cuatro := 5 * str.TamInodo
+	cinco := 20 * str.TamBloque
+	seis := str.TamBitacora
+
+	numerador := tamanioPart - uint32(2*str.TamSuperBoot)
+	denominador := 27 + dos + tres + (cuatro + (cinco) + seis)
+
+	fmt.Println("numerador", numerador)
+	fmt.Println("denominador", denominador)
+
+	return numerador / uint32(denominador)
+}
+
+//Retorna una particion montada
+func getParticionByID(idParticion string) (part str.ParticionMontada) {
+	letra := idParticion[2]
+	numero := idParticion[3:len(idParticion)]
+	codigoLetra, err := strconv.ParseUint(numero, 10, 16)
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < len(str.ParticionesMontadas); i++ {
+		if str.ParticionesMontadas[i].Letra == byte(letra) && str.ParticionesMontadas[i].Numero == uint16(codigoLetra) {
+			part = str.ParticionesMontadas[i]
+		}
+	}
+	return part
 }
 
 func getParticion(mbr str.MBR, n int) (selecPart str.Particion) {

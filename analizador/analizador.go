@@ -9,8 +9,10 @@ import (
 
 	e "../ejecutor"
 	str "../structs"
-	main "../main"
 )
+
+//
+var Numero = e.Numero 
 
 var comandosLeidos = make([]str.Comando, 0)
 

@@ -11,8 +11,7 @@ import (
 	str "../structs"
 )
 
-//
-var Numero = e.Numero 
+var NoMolestar = 0
 
 var comandosLeidos = make([]str.Comando, 0)
 

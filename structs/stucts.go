@@ -70,14 +70,16 @@ var ParticionesMontadas []ParticionMontada
 
 //
 type ParticionMontada struct {
-	Particion Particion
-	Letra     byte
-	Numero    uint16
-	Ruta      string
+	Particion          Particion
+	ContenidoParticion []byte
+	Letra              byte
+	Numero             uint16
+	Ruta               string
+	Superboot          SuperBoot
 }
 
 /*
-	Tamaño real = 172bytes
+	Tamaño real = 174bytes
 */
 type SuperBoot struct {
 	NombreDisco                  [20]byte
@@ -86,21 +88,21 @@ type SuperBoot struct {
 	CantidadInodos               uint32
 	CantidadBloques              uint32
 	CantidadAVDLibres            uint32
-	CantidadDetalleDirectLibres uint32
+	CantidadDetalleDirectLibres  uint32
 	CantidadInodosLibres         uint32
 	CantidadBloquesLibres        uint32
 	FechaCreacion                [22]byte
 	FechaUltimoMontaje           [22]byte
 	NumeroMontajes               uint16
-	ApuntadorBitMapAVD             uint32
+	ApuntadorBitMapAVD           uint32
 	ApuntadorAVD                 uint32
-	ApuntadorBitMapDetalleDirect   uint32
+	ApuntadorBitMapDetalleDirect uint32
 	ApuntadorDetalleDirect       uint32
-	ApuntadorBitMapInodos          uint32
+	ApuntadorBitMapInodos        uint32
 	ApuntadorInodos              uint32
-	ApuntadorBitMapBloques         uint32
+	ApuntadorBitMapBloques       uint32
 	ApuntadorBloques             uint32
-	ApuntadorBitacora             uint32
+	ApuntadorBitacora            uint32
 	TamanioAVD                   uint32
 	TamanioDetalleDirect         uint32
 	TamanioInodo                 uint32
@@ -175,4 +177,10 @@ type Bitacora struct {
 	Nombre        [20]byte
 	Contenido     byte
 	Fecha         [22]byte
+}
+
+//
+type Carpeta struct {
+	idParticion string
+	Ruta        string
 }

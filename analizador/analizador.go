@@ -197,6 +197,132 @@ func analizarcomando(lineacomandos string, inicial string) {
 				comandoLeido := str.Comando{Nombre: "-add", Valor: arr[1]}
 				comandosLeidos = append(comandosLeidos, comandoLeido)
 			}
+			break
+
+		case "mount":
+
+			if s.Contains(s.ToLower(comandos[i]), "-path->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-path", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-name->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-name", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			}
+			break
+
+		case "unmount":
+
+			if s.Contains(s.ToLower(comandos[i]), "-id") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-id", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			}
+			break
+
+		case "mkfs":
+
+			if s.Contains(s.ToLower(comandos[i]), "-id") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-id", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-type->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-type", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			}
+			break
+
+		case "mkdir":
+
+			if s.Contains(s.ToLower(comandos[i]), "-id") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-id", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-path->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-path", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-p") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+
+				comandoLeido := str.Comando{Nombre: "-p", Valor: "p"}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			}
+			break
+
+		case "mkfile":
+
+			if s.Contains(s.ToLower(comandos[i]), "-id") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-id", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-path->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-path", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-p") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+
+				comandoLeido := str.Comando{Nombre: "-p", Valor: "p"}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-size->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-size", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			} else if s.Contains(s.ToLower(comandos[i]), "-cont->") {
+				//param := s.TrimPrefix(comandos[i], "-path->")
+				arr := s.Split(comandos[i], "->")
+				//fmt.Println("PATH ENCONTRADO: ", param)
+
+				comandoLeido := str.Comando{Nombre: "-cont", Valor: arr[1]}
+				comandosLeidos = append(comandosLeidos, comandoLeido)
+
+			}
+			break
 
 		}
 
@@ -243,21 +369,15 @@ func analizarParametros(comms []str.Comando) {
 			} else if comms[i].Nombre == "-name" {
 				nombre = comms[i].Valor
 			} else if comms[i].Nombre == "-unit" {
-				if comms[i].Valor == "k" {
+				if comms[i].Valor == "k" || comms[i].Valor == "K" {
 					unidad = 1024
-				} else if comms[i].Valor == "m" {
+				} else if comms[i].Valor == "m" || comms[i].Valor == "M" {
 					unidad = 1024 * 1024
 				}
 			}
 		}
-		fmt.Println("TAMAÑO DE DISCO", tamanioDisco)
-		fmt.Println("URL DE DISCO", ruta)
-		fmt.Println("NOMBRE DE DISCO", nombre)
-		fmt.Println("UNIDAD DE DISCO", unidad)
 
 		tamanioTotal := tamanioDisco * unidad
-
-		fmt.Println("TOTAL TAMAÑO DE DISCO", tamanioTotal)
 
 		if tamanioTotal <= int64(0) || tamanioTotal > 2147483647 || ruta == "" || nombre == "" {
 			fmt.Println("*************************************************************")
@@ -274,7 +394,6 @@ func analizarParametros(comms []str.Comando) {
 			if err != nil {
 				panic(err)
 			}
-			fmt.Println(contenido)
 			e.MontarMBR(contenido)
 			/*
 				var buffer bytes.Buffer
@@ -353,7 +472,7 @@ func analizarParametros(comms []str.Comando) {
 		}
 
 		var nombrePart [16]byte
-		for i := 0; i < 16; i++ {
+		for i := 0; i < 16 && i < len(nombre); i++ {
 			nombrePart[i] = nombre[i]
 		}
 
@@ -380,7 +499,6 @@ func analizarParametros(comms []str.Comando) {
 		break
 
 	}
-
 }
 
 //

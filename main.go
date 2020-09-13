@@ -22,37 +22,17 @@ func main() {
 	fmt.Print("Hola mundo ")
 	fmt.Println(a.NoMolestar)
 
-	//a.Leer("/home/helmut/Escritorio/prueba.txt")
+	a.Leer("/home/helmut/Escritorio/prueba.txt")
 	//fun()
-	//e.MontarMBR(contenido)
-	e.MontarParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", "hola Mundo")
-	ruta := []string{"/", "home", "user"}
-	e.CrearAVDInicio("vda1", ruta, uint32(5), uint32(5), uint16(777), "123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789")
+	//e.MontarParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", "hola Mundo")
 	//e.FormatearParticion("vda1", "full")
 	//e.CrearRoot("vda1", 1, 1, 777)
-	/*contenido, err := e.LeerDisco("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(contenido)
+	/*ruta := []string{"/", "home", "user"}
+	var cont string = "123456789123456789123456789123456789123456789123456789123456789123456789123456789"
+	paso := e.CrearArchivo("vda1", cont, ruta, "ejemplo.txt", 1, 1, 777)
 	*/
-	/*
-		diciembre
-			fmt.Println("")
-			fmt.Println("PARTICIONES:")
-			for i := 0; i < len(str.ParticionesMontadas); i++ {
-				fmt.Println(str.ParticionesMontadas[i])
-			}
+	//fmt.Println(paso)
 
-			e.DesmontarParticion("vda1")
-			fmt.Println("")
-			fmt.Println("PARTICIONES:")
-			for i := 0; i < len(str.ParticionesMontadas); i++ {
-				fmt.Println(str.ParticionesMontadas[i])
-			}
-	*/
-
-	//97-122
 }
 
 func fun() {

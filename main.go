@@ -13,15 +13,7 @@ import (
 	a "./analizador"
 	e "./ejecutor"
 	//str "./structs"
-	"bytes"
-	"strconv"
-	"time"
 )
-
-type eje struct {
-	nombre string
-	numero int
-}
 
 //
 
@@ -34,7 +26,8 @@ func main() {
 	//fun()
 	//e.MontarMBR(contenido)
 	e.MontarParticion("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk", "hola Mundo")
-	e.BuscarAVD("vda1")
+	ruta := []string{"/", "home", "user"}
+	e.CrearAVDInicio("vda1", ruta, uint32(5), uint32(5), uint16(777), "123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789")
 	//e.FormatearParticion("vda1", "full")
 	//e.CrearRoot("vda1", 1, 1, 777)
 	/*contenido, err := e.LeerDisco("/home/helmut/Escritorio/Mis Discos/Disco_3.dsk")
@@ -59,7 +52,6 @@ func main() {
 			}
 	*/
 
-	
 	//97-122
 }
 
@@ -88,34 +80,4 @@ func fun() {
 
 	e.MontarMBR(contenido)
 
-}
-
-func generarFecha() (fechaReturn [22]byte) {
-
-	anyo, mes, dia := time.Now().Date()
-	hora, min, sec := time.Now().Clock()
-
-	fecha := strconv.Itoa(anyo) + "-" + mes.String() + "-" + strconv.Itoa(dia)
-	horaFecha := strconv.Itoa(hora) + ":" + strconv.Itoa(min) + ":" + strconv.Itoa(sec)
-
-	var buffer bytes.Buffer
-	fecha = fecha + " " + horaFecha
-
-	//fmt.Println("FECHA: ", fecha)
-
-	buffer.Reset()
-	buffer.WriteString(fecha)
-	cadena2 := buffer.Bytes()
-
-	n := 0
-	if len(fechaReturn) < len(cadena2) {
-		n = len(fechaReturn)
-	} else {
-		n = len(cadena2)
-	}
-	for i := 0; i < n; i++ {
-		fechaReturn[i] = cadena2[i]
-	}
-
-	return fechaReturn
 }

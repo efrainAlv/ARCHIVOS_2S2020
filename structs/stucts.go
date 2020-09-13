@@ -23,6 +23,9 @@ var TamBloque = unsafe.Sizeof(Bloque{})
 var TamBitacora = unsafe.Sizeof(Bitacora{})
 
 //
+var TamInfoArchivo = unsafe.Sizeof(InfoArchivo{})
+
+//
 type Comando struct {
 	Nombre string
 	Valor  string
@@ -70,12 +73,26 @@ var ParticionesMontadas []ParticionMontada
 
 //
 type ParticionMontada struct {
-	Particion          Particion
-	ContenidoParticion []byte
 	Letra              byte
 	Numero             uint16
 	Ruta               string
+	Particion          Particion
+	ContenidoParticion []byte
 	Superboot          SuperBoot
+	Bloques            Bloques
+}
+
+//
+type Bloques struct {
+	BitMapAVD      []byte
+	AVD            []AVD_Montada
+	BitMapDetalleD []byte
+	DetalleD       []DetalleDirectorio_Montado
+	BitMapInodo    []byte
+	Inodo          []Inodo_Montado
+	BitMapBloques  []byte
+	Bloque         []Bloque_Montado
+	Bitacora       Bitacora
 }
 
 /*
@@ -129,20 +146,32 @@ type AVD struct {
 	Permisos               uint16
 }
 
+//
+type AVD_Montada struct {
+	Apuntador uint32
+	Avd       AVD
+}
+
 /*
 	Tamaño real = 344bytes
 */
 type DetalleDirectorio struct {
-	Archivos           [5]InforArchivo
+	Archivos           [5]InfoArchivo
 	ApuntadorIndirecto uint32
+}
+
+//
+type DetalleDirectorio_Montado struct {
+	Apuntador uint32
+	DetalleD  DetalleDirectorio
 }
 
 /*
 	Tamaño real = 68bytes
 */
-type InforArchivo struct {
+type InfoArchivo struct {
 	Nombre            [20]byte
-	ApuntarInodo      uint32
+	ApuntadorInodo    uint32
 	FechaCreacion     [22]byte
 	FechaModificacion [22]byte
 }
@@ -161,11 +190,22 @@ type Inodo struct {
 	Permisos           uint16
 }
 
+type Inodo_Montado struct {
+	Apuntador uint32
+	Inodo Inodo
+}
+
 /*
 	Tamaño real = 25bytes
 */
 type Bloque struct {
 	Datos [25]byte
+}
+
+//
+type Bloque_Montado struct {
+	Apuntador uint32
+	Bloque Bloque
 }
 
 /*
@@ -177,10 +217,4 @@ type Bitacora struct {
 	Nombre        [20]byte
 	Contenido     byte
 	Fecha         [22]byte
-}
-
-//
-type Carpeta struct {
-	idParticion string
-	Ruta        string
 }

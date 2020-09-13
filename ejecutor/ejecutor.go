@@ -125,6 +125,24 @@ func editarArchivo(url string, cadena []byte, inicio int64) {
 	_ = len
 }
 
+func editarArchivoVariasVeces(url string, cadena [][]byte, inicio int64) {
+	// Read Write Mode
+	file, err := os.OpenFile(url, os.O_RDWR, 0644)
+
+	if err != nil {
+		log.Fatalf("failed opening file: %s", err)
+	}
+	defer file.Close()
+
+	for i := 0; i < len(cadena); i++ {
+		_, err := file.WriteAt(cadena[i], inicio) // Write at 0 beginning
+		if err != nil {
+			log.Fatalf("failed writing to file: %s", err)
+		}
+	}
+
+}
+
 func editarArchivoVariasCadenas(url string, cadena []byte, inicio int64, n int) {
 	// Read Write Mode
 	file, err := os.OpenFile(url, os.O_RDWR, 0644)
@@ -392,12 +410,22 @@ func MontarParticion(url string, nombre string) {
 			inicio := int(part.Inicio)
 			fin := int(part.Inicio + part.Tamanio)
 			superBoot := MontarSuperBoot(contenidoDisco[inicio:fin])
-			partMont := str.ParticionMontada{Particion: part, ContenidoParticion: contenidoParticion, Letra: 97, Numero: 1, Ruta: url, Superboot: superBoot}
+			avd, bitmap := montarAVD(superBoot, contenidoParticion)
+			detalleD, bitMapDD := montarDetalleD(superBoot, contenidoParticion)
+			bloquesM, bitMapBloque := montarBloques(superBoot, contenidoParticion)
+			inodos, bitMapInodo := montarInodo(superBoot, contenidoParticion)
+
+			fmt.Println("BLOQUE DE CADA AVD:")
+			fmt.Println(avd)
+			fmt.Println("BIT MAP DE LOS BLOQUES AVD")
+			fmt.Println(bitmap)
+
+			bloques := str.Bloques{BitMapAVD: bitmap, AVD: avd, BitMapDetalleD: bitMapDD, DetalleD: detalleD, Bloque: bloquesM, BitMapBloques: bitMapBloque, Inodo: inodos, BitMapInodo: bitMapInodo}
+			partMont := str.ParticionMontada{Particion: part, ContenidoParticion: contenidoParticion, Letra: 97, Numero: 1, Ruta: url, Superboot: superBoot, Bloques: bloques}
 			fmt.Println("****************************************************PARTICION MONTADA *****************************************************")
 			fmt.Println(partMont)
 			fmt.Println("***************************************************************************************************************************")
 			str.ParticionesMontadas = append(str.ParticionesMontadas, partMont)
-			MostrarAVD(partMont.ContenidoParticion, partMont.Superboot)
 
 		} else {
 
@@ -747,152 +775,693 @@ func CrearRoot(idPart string, idProp uint32, idGrupo uint32, permisos uint16) {
 }
 
 //
-func CrearAVD(idPart string, idProp uint32, nombre string, idGrupo uint32, permisos uint16) {
+func CrearAVDInicio(idPart string, ruta []string, idProp uint32, idGrupo uint32, permisos uint16, contenido string) {
 
-	paso := true
+	nombresDirect := [][20]byte{}
+
+	for i := 0; i < len(ruta); i++ {
+		nombresDirect = append(nombresDirect, convertirNombreASlice(convertirStringASlice(ruta[i])))
+	}
 
 	part := getParticionByID(idPart)
 
-	fechaCreacion := generarFecha()
-	var nombreDirectorio [20]byte
-	for i := 0; i < len(nombre) || i < 20; i++ {
-		nombreDirectorio[i] = nombre[i]
-	}
-	subAVD := [6]uint32{0, 0, 0, 0, 0, 0}
-	apuntadorDetalleDirect := uint32(0)
-	apuntadorIndirecto := uint32(0)
+	apuntador, ultimo, indice := buscarAVD(part.Bloques.AVD, nombresDirect, 0, part.Superboot.ApuntadorAVD)
 
-	inicioParticion := part.Particion.Inicio
-	inicioAVD := part.Superboot.ApuntadorAVD
-	inicioBitMap := part.Superboot.ApuntadorBitMapAVD
-	finalBloquesAVD := inicioAVD + uint32(str.TamAVD)*part.Superboot.CantidadAVD
+	CrearArchivo(part, contenido)
 
-	for i := inicioAVD + 22; i < finalBloquesAVD; i += uint32(str.TamAVD) {
-		var nombreTemp [20]byte
-		for j := 0; j < 20; j++ {
-			nombreTemp[j] = part.ContenidoParticion[i+uint32(j)]
+	avdNuevos := []uint32{}
+	part, avdNuevos = crearAVD(part, ultimo, indice, nombresDirect, idProp, idGrupo, permisos, avdNuevos)
+
+	fmt.Println("APUNTADOR:", apuntador)
+	fmt.Println("ULTIMO ENCONTRADO:", ultimo)
+	fmt.Println("INDICE:", indice)
+
+	var buffer bytes.Buffer
+	binary.Write(&buffer, binary.BigEndian, part.Superboot)
+	editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Particion.Inicio))
+	buffer.Reset()
+
+	binary.Write(&buffer, binary.BigEndian, part.Bloques.BitMapAVD)
+	editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Superboot.ApuntadorBitMapAVD+part.Particion.Inicio))
+	buffer.Reset()
+
+	for i := 0; i < len(part.Bloques.AVD); i++ {
+		for j := 0; j < len(avdNuevos); j++ {
+
+			if avdNuevos[j] == part.Bloques.AVD[i].Apuntador {
+				binary.Write(&buffer, binary.BigEndian, part.Bloques.AVD[i].Avd)
+				editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Bloques.AVD[i].Apuntador+part.Particion.Inicio))
+				buffer.Reset()
+			}
+
 		}
-		if nombreTemp == nombreDirectorio {
-			paso = false
-			break
-		}
-	}
 
-	if paso {
-		avd := str.AVD{FechaCreacion: fechaCreacion,
-			NombreDirectorio:       nombreDirectorio,
-			SubAVD:                 subAVD,
-			ApuntadorDetalleDirect: apuntadorDetalleDirect,
-			ApuntadorIndirecto:     apuntadorIndirecto,
-			IDPropietario:          idProp,
-			IDGrupo:                idGrupo,
-			Permisos:               permisos}
-
-		var buffer bytes.Buffer
-		binary.Write(&buffer, binary.BigEndian, avd)
-		cadenaAVD := buffer.Bytes()
-
-		cadena, bitLibre := editarBitMapYBloque(part.ContenidoParticion[inicioBitMap:finalBloquesAVD], part.Superboot.CantidadAVD, part.Superboot.TamanioAVD, cadenaAVD)
-		part.Superboot.CantidadAVDLibres--
-		part.Superboot.PrimerAVDLibre = bitLibre + part.Superboot.ApuntadorBitMapAVD
-
-		buffer.Reset()
-		binary.Write(&buffer, binary.BigEndian, part.Superboot)
-		//EDITANDO EL SUPERBOOT
-		editarArchivo(part.Ruta, buffer.Bytes(), int64(inicioParticion))
-		//EDITANDO BITMAP Y BLOQUE DONDE 138 ES EL FINAL DEL MBR
-		editarArchivo(part.Ruta, cadena, int64(inicioBitMap)+138)
-
-		fmt.Println("*************************************************************")
-		fmt.Println("*                     CARPETA CREADA                        *")
-		fmt.Println("*************************************************************")
-
-	} else {
-
-		fmt.Println("*************************************************************")
-		fmt.Println("*                        ALERTA                             *")
-		fmt.Println("*************************************************************")
-		fmt.Println("*                EL DIRECCTORIO YA EXISTE                   *")
-		fmt.Println("*************************************************************")
-
-	}
-}
-
-//
-func BuscarAVD(idPart string) {
-
-	part := getParticionByID(idPart)
-
-	if part.Ruta != "" {
-
-		buscarDirectorio(part, part.Superboot.ApuntadorAVD, convertirNombreASlice([]byte{'/'}))
-		buscarDirectorio(part, part.Superboot.ApuntadorAVD, convertirNombreASlice([]byte{'c', 'a', 'r', 'p', 'e', 't', 'a'}))
-
-	} else {
-		fmt.Println("NO HAY NINGUNA PARTICION MONTADA CON ESE ID")
 	}
 
 }
 
-func buscarDirectorio(part str.ParticionMontada, inicio uint32, nombre [20]byte) (apuntadorAVD uint32) {
+func crearAVD(part str.ParticionMontada, ultimo uint32, indice int, nombres [][20]byte, idProp uint32, idGrupo uint32, permisos uint16, avdM []uint32) (str.ParticionMontada, []uint32) {
 
-	inicio = part.Superboot.ApuntadorAVD
-	final := inicio + uint32(str.TamAVD)*part.Superboot.CantidadAVD
-	avd := part.ContenidoParticion[inicio:final]
-	nombreDirect := convertirNombreASlice(avd[22:42])
-	apuntadorAVD = 0
+	if indice+1 <= len(nombres) {
 
-	if nombre == nombreDirect {
-		fmt.Println("NOMBRES IGUALES")
-		fmt.Println("NOMBRE DEL DIRECTORIO", nombre)
+		n := 0
+		for i := 0; i < len(part.Bloques.BitMapAVD); i++ {
+			if part.Bloques.BitMapAVD[i] == 0 {
+				part.Bloques.BitMapAVD[i] = 1
+				part.Superboot.CantidadAVDLibres--
+				for j := i; j < len(part.Bloques.BitMapAVD); j++ {
+					if part.Bloques.BitMapAVD[j] == 0 {
+						part.Superboot.PrimerAVDLibre = part.Superboot.ApuntadorBitMapAVD + uint32(j)
+						break
+					}
+				}
+				break
+			}
+			n++
+		}
 
-	} else {
+		lleno := true
+		for i := 0; i < len(part.Bloques.AVD); i++ {
+			if part.Bloques.AVD[i].Apuntador == ultimo {
+				for j := 0; j < len(part.Bloques.AVD[i].Avd.SubAVD); j++ {
+					if part.Bloques.AVD[i].Avd.SubAVD[j] == 0 {
+						nuevoApuntador := part.Superboot.ApuntadorAVD + uint32(n)*uint32(str.TamAVD)
+						part.Bloques.AVD[i].Avd.SubAVD[j] = nuevoApuntador
+						lleno = false
 
-		var apuntadores [6]uint32
-		apuntadores[0] = convertirBinario(part.ContenidoParticion[inicio+42 : inicio+46])
-		apuntadores[1] = convertirBinario(part.ContenidoParticion[inicio+46 : inicio+50])
-		apuntadores[2] = convertirBinario(part.ContenidoParticion[inicio+50 : inicio+54])
-		apuntadores[3] = convertirBinario(part.ContenidoParticion[inicio+54 : inicio+58])
-		apuntadores[4] = convertirBinario(part.ContenidoParticion[inicio+58 : inicio+62])
-		apuntadores[5] = convertirBinario(part.ContenidoParticion[inicio+62 : inicio+66])
-		indirect := convertirBinario(part.ContenidoParticion[inicio+70 : inicio+74])
+						fechaCreacion := generarFecha()
+						subAVD := [6]uint32{0, 0, 0, 0, 0, 0}
 
-		for i := 0; i < len(apuntadores); i++ {
-			if apuntadores[i]!=0{
-				if getNombreAVDByApuntador(avd, apuntadores[i]) == nombre {
-					apuntadorAVD = apuntadores[i]
-					goto fin
+						avd := str.AVD{FechaCreacion: fechaCreacion,
+							NombreDirectorio:       nombres[indice],
+							SubAVD:                 subAVD,
+							ApuntadorDetalleDirect: 0,
+							ApuntadorIndirecto:     0,
+							IDPropietario:          idProp,
+							IDGrupo:                idGrupo,
+							Permisos:               permisos}
+
+						avdMontada := str.AVD_Montada{Apuntador: nuevoApuntador, Avd: avd}
+						for k := 0; k < len(part.Bloques.AVD); k++ {
+							if part.Bloques.AVD[k].Apuntador == nuevoApuntador {
+								part.Bloques.AVD[k] = avdMontada
+								break
+							}
+						}
+
+						avdM = append(avdM, ultimo)
+						avdM = append(avdM, nuevoApuntador)
+						part, avdM = crearAVD(part, nuevoApuntador, indice+1, nombres, idProp, idGrupo, permisos, avdM)
+						goto fin
+					}
+				}
+				break
+			}
+
+		}
+
+		if lleno {
+
+			nuevoApuntador := part.Superboot.ApuntadorBitMapAVD + uint32(n)*uint32(str.TamAVD)
+			ultimo = nuevoApuntador
+			apuntadorD := uint32(0)
+			idPropietario := uint32(0)
+			idGrupoo := uint32(0)
+			permisoss := uint16(0)
+
+			for i := 0; i < len(part.Bloques.AVD); i++ {
+				if part.Bloques.AVD[i].Apuntador == ultimo {
+					part.Bloques.AVD[i].Avd.ApuntadorIndirecto = nuevoApuntador
+					apuntadorD = part.Bloques.AVD[i].Avd.ApuntadorDetalleDirect
+					idPropietario = part.Bloques.AVD[i].Avd.IDPropietario
+					idGrupoo = part.Bloques.AVD[i].Avd.IDGrupo
+					permisoss = part.Bloques.AVD[i].Avd.Permisos
+
+					break
 				}
 			}
-		}
 
-		if indirect != 0 {
-			apuntadorAVD = buscarDirectorio(part, indirect, getNombreAVDByApuntador(part.ContenidoParticion[indirect:final], indirect))
-		}
+			fechaCreacion := generarFecha()
+			subAVD := [6]uint32{0, 0, 0, 0, 0, 0}
 
-		if apuntadorAVD == 0 {
-			for i := 0; i < len(apuntadores); i++ {
-				apuntadorAVD = buscarDirectorio(part, apuntadores[i], getNombreAVDByApuntador(part.ContenidoParticion[indirect:final], apuntadores[i]))
+			avd := str.AVD{FechaCreacion: fechaCreacion,
+				NombreDirectorio:       nombres[indice-1],
+				SubAVD:                 subAVD,
+				ApuntadorDetalleDirect: apuntadorD,
+				ApuntadorIndirecto:     0,
+				IDPropietario:          idPropietario,
+				IDGrupo:                idGrupoo,
+				Permisos:               permisoss}
+
+			avdMontada := str.AVD_Montada{Apuntador: nuevoApuntador, Avd: avd}
+			for i := 0; i < len(part.Bloques.AVD); i++ {
+				if part.Bloques.AVD[i].Apuntador == nuevoApuntador {
+					part.Bloques.AVD[i] = avdMontada
+					break
+				}
 			}
+
+			avdM = append(avdM, ultimo)
+			avdM = append(avdM, nuevoApuntador)
+			part, avdM = crearAVD(part, ultimo, indice+1, nombres, idProp, idGrupo, permisos, avdM)
+			goto fin
+
 		}
 
 	}
 
 fin:
-	return apuntadorAVD
+	return part, avdM
 }
 
-func getNombreAVDByApuntador(contnidoBloqueAVD []byte, apuntador uint32) (nombreDirectorio [20]byte) {
+//
+func CrearDetalleD() {
 
-	nombre := contnidoBloqueAVD[apuntador : apuntador+uint32(str.TamAVD)]
-	nombreDirectorio = convertirNombreASlice(nombre)
+
+	
+}
+
+/*
+func crearDetalle(part str.ParticionMontada, ultimo uint32, avdAptr uint32, nombre [20]byte, idProp uint32, idGrupo uint32, permisos uint16, detalleD []uint32) {
+
+	n := 0
+	for i := 0; i < len(part.Bloques.BitMapDetalleD); i++ {
+		if part.Bloques.BitMapDetalleD[i] == 0 {
+			part.Bloques.BitMapDetalleD[i] = 1
+			part.Superboot.CantidadDetalleDirectLibres--
+			for j := i; j < len(part.Bloques.BitMapDetalleD); j++ {
+				if part.Bloques.BitMapDetalleD[j] == 0 {
+					part.Superboot.PrimerDetalleDirectLibre = part.Superboot.ApuntadorBitMapDetalleDirect + uint32(j)
+					break
+				}
+			}
+			break
+		}
+		n++
+	}
+
+	lleno := true
+
+	for i := 0; i < len(part.Bloques.AVD); i++ {
+
+		if part.Bloques.AVD[i].Apuntador == avdAptr {
+
+			nuevoApuntador := part.Superboot.ApuntadorDetalleDirect + uint32(n)*uint32(str.TamDetalleDirect)
+			for j := 0; j < len(part.Bloques.DetalleD); j++ {
+				if part.Bloques.DetalleD[j].Apuntador == nuevoApuntador {
+
+					dD := part.Bloques.DetalleD[j].DetalleD.Archivos
+					for k := 0; k < len(dD); k++ {
+
+						temp := [20]byte{}
+						if dD[k].Nombre == temp {
+
+							lleno = false
+						}
+
+					}
+					break
+				}
+			}
+
+			break
+		}
+
+	}
+
+	for i := 0; i < len(part.Bloques.DetalleD); i++ {
+		if part.Bloques.DetalleD[i].Apuntador == ultimo {
+
+			for j := 0; j < len(part.Bloques.AVD[i].Avd.SubAVD); j++ {
+				if part.Bloques.AVD[i].Avd.SubAVD[j] == 0 {
+					nuevoApuntador := part.Superboot.ApuntadorAVD + uint32(n)*uint32(str.TamAVD)
+					part.Bloques.AVD[i].Avd.SubAVD[j] = nuevoApuntador
+					lleno = false
+
+					fechaCreacion := generarFecha()
+					subAVD := [6]uint32{0, 0, 0, 0, 0, 0}
+
+					avd := str.AVD{FechaCreacion: fechaCreacion,
+						NombreDirectorio:       nombres[indice],
+						SubAVD:                 subAVD,
+						ApuntadorDetalleDirect: 0,
+						ApuntadorIndirecto:     0,
+						IDPropietario:          idProp,
+						IDGrupo:                idGrupo,
+						Permisos:               permisos}
+
+					avdMontada := str.AVD_Montada{Apuntador: nuevoApuntador, Avd: avd}
+					for k := 0; k < len(part.Bloques.AVD); k++ {
+						if part.Bloques.AVD[k].Apuntador == nuevoApuntador {
+							part.Bloques.AVD[k] = avdMontada
+							break
+						}
+					}
+
+					avdM = append(avdM, ultimo)
+					avdM = append(avdM, nuevoApuntador)
+					part, avdM = crearAVD(part, nuevoApuntador, indice+1, nombres, idProp, idGrupo, permisos, avdM)
+					goto fin
+				}
+			}
+			break
+		}
+
+	}
+
+	if lleno {
+
+		nuevoApuntador := part.Superboot.ApuntadorBitMapAVD + uint32(n)*uint32(str.TamAVD)
+		ultimo = nuevoApuntador
+		apuntadorD := uint32(0)
+		idPropietario := uint32(0)
+		idGrupoo := uint32(0)
+		permisoss := uint16(0)
+
+		for i := 0; i < len(part.Bloques.AVD); i++ {
+			if part.Bloques.AVD[i].Apuntador == ultimo {
+				part.Bloques.AVD[i].Avd.ApuntadorIndirecto = nuevoApuntador
+				apuntadorD = part.Bloques.AVD[i].Avd.ApuntadorDetalleDirect
+				idPropietario = part.Bloques.AVD[i].Avd.IDPropietario
+				idGrupoo = part.Bloques.AVD[i].Avd.IDGrupo
+				permisoss = part.Bloques.AVD[i].Avd.Permisos
+
+				break
+			}
+		}
+
+		fechaCreacion := generarFecha()
+		subAVD := [6]uint32{0, 0, 0, 0, 0, 0}
+
+		avd := str.AVD{FechaCreacion: fechaCreacion,
+			NombreDirectorio:       nombres[indice-1],
+			SubAVD:                 subAVD,
+			ApuntadorDetalleDirect: apuntadorD,
+			ApuntadorIndirecto:     0,
+			IDPropietario:          idPropietario,
+			IDGrupo:                idGrupoo,
+			Permisos:               permisoss}
+
+		avdMontada := str.AVD_Montada{Apuntador: nuevoApuntador, Avd: avd}
+		for i := 0; i < len(part.Bloques.AVD); i++ {
+			if part.Bloques.AVD[i].Apuntador == nuevoApuntador {
+				part.Bloques.AVD[i] = avdMontada
+				break
+			}
+		}
+
+		avdM = append(avdM, ultimo)
+		avdM = append(avdM, nuevoApuntador)
+		part, avdM = crearAVD(part, ultimo, indice+1, nombres, idProp, idGrupo, permisos, avdM)
+		goto fin
+
+	}
+
+fin:
+}
+
+*/
+
+func convertirStringADatos(datos []byte) (salida [25]byte) {
+
+	for i := 0; i < len(datos) && i < 25; i++ {
+		salida[i] = datos[i]
+	}
+
+	return salida
+}
+
+//
+func CrearArchivo(part str.ParticionMontada, contenido string) {
+
+	cadena := convertirStringASlice(contenido)
+	bloquesDatos := [][25]byte{}
+
+	for i := 0; i < len(cadena); i++ {
+
+		if len(cadena) >= 25 {
+			bloquesDatos = append(bloquesDatos, convertirStringADatos(cadena[0:25]))
+			cadena = cadena[25:]
+
+		} else {
+			bloquesDatos = append(bloquesDatos, convertirStringADatos(cadena[0:]))
+			break
+		}
+	}
+
+	//CREAR BLOQUES
+
+	apuntadoresBloques := []uint32{}
+	temp := uint32(0)
+	for i := 0; i < len(bloquesDatos); i++ {
+		part, temp = crearBloques(part, bloquesDatos[i])
+		apuntadoresBloques = append(apuntadoresBloques, temp)
+	}
+
+	//CREAR INODO
+
+	InodoNuevos := []uint32{}
+	part, InodoNuevos = crearInodo(part, 0, apuntadoresBloques, 0, uint16(len(apuntadoresBloques)), uint32(len(contenido)), 2, 3, 77, InodoNuevos)
+
+	//CREAR DETALLE DE DIRECTORIO
+}
+
+func crearInodo(part str.ParticionMontada, ultimo uint32, bloques []uint32, indice int, nBloques uint16, tamanio uint32, idP uint32, idG uint32, permisos uint16, inodos []uint32) (str.ParticionMontada, []uint32) {
+
+	n := 0
+	for i := 0; i < len(part.Bloques.BitMapInodo); i++ {
+		if part.Bloques.BitMapInodo[i] == 0 {
+			part.Bloques.BitMapInodo[i] = 1
+			part.Superboot.CantidadInodosLibres--
+			for j := i; j < len(part.Bloques.BitMapInodo); j++ {
+				if part.Bloques.BitMapInodo[j] == 0 {
+					part.Superboot.PrimerInodoLibre = part.Superboot.ApuntadorInodos + uint32(j)
+					break
+				}
+			}
+			break
+		}
+		n++
+	}
+
+	lleno := true
+	for i := 0; i < len(part.Bloques.Inodo); i++ {
+		if part.Bloques.Inodo[i].Apuntador == part.Superboot.ApuntadorInodos+uint32(n)*uint32(str.TamInodo) {
+
+			bloquesInodo := [4]uint32{}
+			for j := 0; j < len(bloquesInodo) && indice < len(bloques); j++ {
+				if bloquesInodo[j] == 0 {
+					bloquesInodo[j] = bloques[indice]
+					indice++
+				}
+			}
+			if ultimo!=0 {
+				for j := 0; j < len(part.Bloques.Inodo); j++ {
+					if part.Bloques.Inodo[j].Apuntador == ultimo {
+						part.Bloques.Inodo[j].Inodo.ApuntadorIndirecto = part.Bloques.Inodo[i].Apuntador
+						break
+					}
+				}
+			}
+			if indice < len(bloques) {
+				lleno = true
+				ultimo = part.Bloques.Inodo[i].Apuntador
+			} else {
+				lleno = false
+			}
+			
+			inodo := str.Inodo{
+				Numero:             uint32(n),
+				TamanioArchivo:     tamanio,
+				NumeroBloques:      nBloques,
+				Bloques:            bloquesInodo,
+				ApuntadorIndirecto: 0,
+				IDPropietario:      idP,
+				IDGrupo:            idG,
+				Permisos:           permisos}
+
+			part.Bloques.Inodo[i].Inodo = inodo
+			inodos = append(inodos, part.Bloques.Inodo[i].Apuntador)
+			break
+		}
+
+	}
+
+	if lleno {
+		part, inodos = crearInodo(part, ultimo, bloques, indice, nBloques, tamanio, idP, idG, permisos, inodos)
+	}
+
+	return part, inodos
+}
+
+func crearBloques(part str.ParticionMontada, contenido [25]byte) (str.ParticionMontada, uint32) {
+
+	n := 0
+	for i := 0; i < len(part.Bloques.BitMapBloques); i++ {
+		if part.Bloques.BitMapBloques[i] == 0 {
+			part.Bloques.BitMapBloques[i] = 1
+			part.Superboot.CantidadBloquesLibres--
+			for j := i; j < len(part.Bloques.BitMapBloques); j++ {
+				if part.Bloques.BitMapBloques[j] == 0 {
+					part.Superboot.PrimerBloqueLibre = part.Superboot.ApuntadorBloques + uint32(j)
+					break
+				}
+			}
+			break
+		}
+		n++
+	}
+
+	nuevoApuntador := part.Superboot.ApuntadorBloques + uint32(n)*uint32(str.TamBloque)
+	for i := 0; i < len(part.Bloques.Bloque); i++ {
+		if part.Bloques.Bloque[i].Apuntador == nuevoApuntador {
+			bTemp := str.Bloque{Datos: contenido}
+			part.Bloques.Bloque[i].Bloque = bTemp
+			break
+		}
+
+	}
+
+	return part, nuevoApuntador
+}
+
+func buscarAVD(avd []str.AVD_Montada, nombres [][20]byte, indice int, apuntador uint32) (apuntadorAVD uint32, ultimoReconocido uint32, indiceNombre int) {
+
+	indiceNombre = indice
+	ultimoReconocido = apuntador
+	apuntadorAVD = 0
+
+	if len(nombres) >= indice+1 {
+
+		for i := 0; i < len(avd); i++ {
+
+			if avd[i].Apuntador == apuntador {
+				if nombres[indice] == avd[i].Avd.NombreDirectorio {
+
+					if len(nombres) == indice+1 {
+						apuntadorAVD = apuntador
+						goto fin
+
+					} else {
+						apuntadorAVD, ultimoReconocido, indiceNombre = buscarAVD(avd, nombres, indice+1, apuntador)
+						goto fin
+					}
+
+				}
+				break
+			}
+
+		}
+
+		for i := 0; i < len(avd); i++ {
+
+			if avd[i].Apuntador == apuntador {
+
+				for j := 0; j < len(avd[i].Avd.SubAVD); j++ {
+
+					if avd[i].Avd.SubAVD[j] != 0 {
+						if temp := getNombreAVDByApuntador(avd, avd[i].Avd.SubAVD[j]); temp == nombres[indice] {
+							apuntadorAVD, ultimoReconocido, indiceNombre = buscarAVD(avd, nombres, indice+1, avd[i].Avd.SubAVD[j])
+							break
+						}
+					}
+				}
+				break
+			}
+		}
+
+		if apuntadorAVD == 0 {
+
+			for i := 0; i < len(avd); i++ {
+				if avd[i].Apuntador == apuntador {
+					if avd[i].Avd.ApuntadorIndirecto != 0 {
+						apuntadorAVD, ultimoReconocido, indiceNombre = buscarAVD(avd, nombres, indice+1, apuntador)
+					}
+					break
+				}
+			}
+
+		}
+
+	}
+
+fin:
+	return apuntadorAVD, ultimoReconocido, indiceNombre
+
+}
+
+func getNombreAVDByApuntador(avd []str.AVD_Montada, apuntador uint32) (nombreDirectorio [20]byte) {
+
+	for i := 0; i < len(avd); i++ {
+		if avd[i].Apuntador == apuntador {
+			nombreDirectorio = avd[i].Avd.NombreDirectorio
+			break
+		}
+	}
+
 	return nombreDirectorio
 }
 
-func convertirNombreASlice(nombre []byte) (nombreAVD [20]byte) {
+func montarAVD(sb str.SuperBoot, contenidoParticion []byte) (bloqueAVD []str.AVD_Montada, BitMapAVD []byte) {
+
+	inicio := sb.ApuntadorAVD
+	fin := inicio + sb.CantidadAVD*uint32(str.TamAVD)
+	contenidoBloque := contenidoParticion[inicio:fin]
+
+	BitMapAVD = contenidoParticion[sb.ApuntadorBitMapAVD : sb.ApuntadorBitMapAVD+sb.CantidadAVD]
+
+	for i := 0; i < len(contenidoBloque); i += int(str.TamAVD) {
+
+		fecha := convertirFechaASlice(contenidoBloque[i : i+22])
+		nombre := convertirNombreASlice(contenidoBloque[i+22 : i+42])
+		subAVD := [6]uint32{}
+		subAVD[0] = convertirBinario(contenidoBloque[i+42 : i+46])
+		subAVD[1] = convertirBinario(contenidoBloque[i+46 : i+50])
+		subAVD[2] = convertirBinario(contenidoBloque[i+50 : i+54])
+		subAVD[3] = convertirBinario(contenidoBloque[i+54 : i+58])
+		subAVD[4] = convertirBinario(contenidoBloque[i+58 : i+62])
+		subAVD[5] = convertirBinario(contenidoBloque[i+62 : i+66])
+		apuntadorDetalleD := convertirBinario(contenidoBloque[i+66 : i+70])
+		apuntadorIndirecto := convertirBinario(contenidoBloque[i+70 : i+74])
+		idProp := convertirBinario(contenidoBloque[i+74 : i+78])
+		idGrupo := convertirBinario(contenidoBloque[i+78 : i+82])
+		permisos := uint16(convertirBinario(contenidoBloque[i+82 : i+84]))
+
+		avd := str.AVD{FechaCreacion: fecha,
+			NombreDirectorio:       nombre,
+			SubAVD:                 subAVD,
+			ApuntadorDetalleDirect: apuntadorDetalleD,
+			ApuntadorIndirecto:     apuntadorIndirecto,
+			IDPropietario:          idProp,
+			IDGrupo:                idGrupo,
+			Permisos:               permisos}
+
+		avdMontada := str.AVD_Montada{Apuntador: uint32(i) + inicio, Avd: avd}
+		bloqueAVD = append(bloqueAVD, avdMontada)
+	}
+
+	return bloqueAVD, BitMapAVD
+}
+
+func montarDetalleD(sb str.SuperBoot, contenidoParticion []byte) (bloqueDD []str.DetalleDirectorio_Montado, BitMapDetalleD []byte) {
+
+	inicio := sb.ApuntadorDetalleDirect
+	fin := inicio + sb.CantidadDetalleDirect*uint32(str.TamDetalleDirect)
+	contenidoBloque := contenidoParticion[inicio:fin]
+
+	BitMapDetalleD = contenidoParticion[sb.ApuntadorBitMapDetalleDirect : sb.ApuntadorBitMapDetalleDirect+sb.CantidadDetalleDirect]
+
+	for i := 0; i < len(contenidoBloque); i += int(str.TamDetalleDirect) {
+
+		temp := []str.InfoArchivo{}
+		for j := uint32(i); j < uint32(5)*uint32(str.TamInfoArchivo)+uint32(i); j += uint32(str.TamInfoArchivo) {
+			nombre := convertirNombreASlice(contenidoBloque[j : j+20])
+			apuntadorInodo := convertirBinario(contenidoBloque[j+20 : j+24])
+			fechaC := convertirFechaASlice(contenidoBloque[j+24 : j+46])
+			fechaM := convertirFechaASlice(contenidoBloque[j+46 : j+68])
+
+			archivo := str.InfoArchivo{Nombre: nombre, ApuntadorInodo: apuntadorInodo, FechaCreacion: fechaC, FechaModificacion: fechaM}
+			temp = append(temp, archivo)
+		}
+
+		archivos := [5]str.InfoArchivo{}
+		for j := 0; j < 5; j++ {
+			archivos[j] = temp[j]
+		}
+
+		numero := 5*uint32(str.TamInfoArchivo) + uint32(i)
+		apuntadorIndirecto := convertirBinario(contenidoBloque[numero : numero+4])
+
+		detalleD := str.DetalleDirectorio{Archivos: archivos, ApuntadorIndirecto: apuntadorIndirecto}
+
+		dDMontado := str.DetalleDirectorio_Montado{Apuntador: uint32(i) + inicio, DetalleD: detalleD}
+		bloqueDD = append(bloqueDD, dDMontado)
+	}
+
+	return bloqueDD, BitMapDetalleD
+}
+
+func montarInodo(sb str.SuperBoot, contenidoParticion []byte) (bloqueInodo []str.Inodo_Montado, BitMapInodo []byte) {
+
+	inicio := sb.ApuntadorInodos
+	fin := inicio + sb.CantidadInodos*uint32(str.TamInodo)
+	contenidoBloque := contenidoParticion[inicio:fin]
+
+	BitMapInodo = contenidoParticion[sb.ApuntadorBitMapInodos : sb.ApuntadorBitMapInodos+sb.CantidadInodos]
+
+	for i := 0; i < len(contenidoBloque); i += int(str.TamInodo) {
+
+		numero := convertirBinario(contenidoBloque[i : i+4])
+		tamanio := convertirBinario(contenidoBloque[i+4 : i+8])
+		numeroBloques := uint16(convertirBinario(contenidoBloque[i+8 : i+10]))
+		bloques := [4]uint32{}
+		bloques[0] = convertirBinario(contenidoBloque[i+10 : i+14])
+		bloques[1] = convertirBinario(contenidoBloque[i+14 : i+18])
+		bloques[2] = convertirBinario(contenidoBloque[i+18 : i+22])
+		bloques[3] = convertirBinario(contenidoBloque[i+22 : i+26])
+		indirecto := convertirBinario(contenidoBloque[i+26 : i+30])
+		idProp := convertirBinario(contenidoBloque[i+30 : i+34])
+		idGrupo := convertirBinario(contenidoBloque[i+34 : i+38])
+		permisos := uint16(convertirBinario(contenidoBloque[i+38 : i+40]))
+
+		inodo := str.Inodo{Numero: numero,
+			TamanioArchivo:     tamanio,
+			NumeroBloques:      numeroBloques,
+			Bloques:            bloques,
+			ApuntadorIndirecto: indirecto,
+			IDPropietario:      idProp,
+			IDGrupo:            idGrupo,
+			Permisos:           permisos}
+
+		inodoMontado := str.Inodo_Montado{Apuntador: uint32(i) + inicio, Inodo: inodo}
+		bloqueInodo = append(bloqueInodo, inodoMontado)
+	}
+
+	return bloqueInodo, BitMapInodo
+}
+
+func montarBloques(sb str.SuperBoot, contenidoParticion []byte) (bloques []str.Bloque_Montado, BitMapBloque []byte) {
+
+	inicio := sb.ApuntadorBloques
+	fin := inicio + sb.CantidadBloques*uint32(str.TamBloque)
+	contenidoBloque := contenidoParticion[inicio:fin]
+
+	BitMapBloque = contenidoParticion[sb.ApuntadorBitMapBloques : sb.ApuntadorBitMapBloques+sb.CantidadBloques]
+
+	for i := 0; i < len(contenidoBloque); i += int(str.TamBloque) {
+
+		datos := convertirStringADatos(contenidoBloque[i : i+25])
+
+		bloque := str.Bloque{Datos: datos}
+
+		bloqueM := str.Bloque_Montado{Apuntador: uint32(i) + inicio, Bloque: bloque}
+		bloques = append(bloques, bloqueM)
+	}
+
+	return bloques, BitMapBloque
+}
+
+func convertirNombreASlice(nombre []byte) (nombreSalida [20]byte) {
 
 	for i := 0; i < len(nombre) && i < 20; i++ {
-		nombreAVD[i] = nombre[i]
+		nombreSalida[i] = nombre[i]
+	}
+
+	return nombreSalida
+}
+
+func convertirFechaASlice(fecha []byte) (fechaSalida [22]byte) {
+
+	for i := 0; i < len(fecha) && i < 22; i++ {
+		fechaSalida[i] = fecha[i]
+	}
+
+	return fechaSalida
+}
+
+func convertirStringASlice(nombre string) (nombreAVD []byte) {
+	for i := 0; i < len(nombre); i++ {
+		nombreAVD = append(nombreAVD, nombre[i])
 	}
 
 	return nombreAVD

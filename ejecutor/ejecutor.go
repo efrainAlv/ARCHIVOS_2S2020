@@ -26,6 +26,7 @@ import (
 	rand "math/rand"
 	"os"
 	"strconv"
+	"strings"
 	s "strings"
 	"time"
 
@@ -186,6 +187,51 @@ func CrearMBR(tamanio int64, url string) {
 }
 
 //
+func EliminarDisco(nombreCarpeta string) {
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("")
+	fmt.Println("*************************************************************")
+	fmt.Println("*                          ALERTA                           *")
+	fmt.Println("*************************************************************")
+	fmt.Println("*        PRESIONE LA TECLA '1' PARA ELIMINAR EL DISCO       *")
+	fmt.Println("*************************************************************")
+	fmt.Println("")
+	entrada, _ := reader.ReadString('\n')          // Leer hasta el separador de salto de línea
+	eleccion := strings.TrimRight(entrada, "\r\n") // Remover el salto de línea de la entrada del usuario
+
+	switch eleccion {
+	case "1":
+		err := os.Remove(nombreCarpeta)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*                          ALERTA                           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("*           EL DISCO QUE DESEA ELIMINAR NO EXISTE           *")
+			fmt.Println("*               ", nombreCarpeta, "               *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		} else {
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*                       DISCO ELIMINADO                     *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		}
+	default:
+		fmt.Println("")
+		fmt.Println("*************************************************************")
+		fmt.Println("*                     DISCO NO ELIMINADO                    *")
+		fmt.Println("*************************************************************")
+		fmt.Println("")
+	}
+
+}
+
+//
 func MontarMBR(contenidoDisco []byte) (MBR str.MBR) {
 
 	mbr := str.MBR{}
@@ -297,20 +343,24 @@ func CrearParticion(url string, tipo byte, ajuste byte, tamanio uint32, nombre [
 			tipoDisponible = true
 
 		} else {
+			fmt.Println("")
 			fmt.Println("*************************************************************")
 			fmt.Println("*                          ALERTA                           *")
 			fmt.Println("*************************************************************")
 			fmt.Println("*      NO HAY ESPACIO PARA UNA PARTICION DEL TIPO ", fmt.Sprintf("%c", tipo), "       *")
 			fmt.Println("*************************************************************")
+			fmt.Println("")
 			goto final
 		}
 	} else {
 
+		fmt.Println("")
 		fmt.Println("*************************************************************")
 		fmt.Println("*                          ALERTA                           *")
 		fmt.Println("*************************************************************")
 		fmt.Println("*  EL NOMBRE DE LA PARTICION YA ESXISTE, INTENTE CON OTRO   *")
 		fmt.Println("*************************************************************")
+		fmt.Println("")
 		goto final
 	}
 
@@ -364,80 +414,125 @@ final:
 func MontarParticion(url string, nombre string) {
 
 	contenidoDisco, err := LeerDisco(url)
+	discoExiste:=true
 	if err != nil {
-		panic(err)
-	}
-
-	mbr := MontarMBR(contenidoDisco)
-	var buffer bytes.Buffer
-	buffer.WriteString(nombre)
-	var nombrePart [16]byte
-	var nombreTemp = buffer.Bytes()
-	for i := 0; i < len(nombre); i++ {
-		nombrePart[i] = nombreTemp[i]
-	}
-
-	part := str.Particion{}
-	nombreExiste := false
-	for i := 0; i < 4; i++ {
-		if part = getParticion(mbr, i); part.Nombre == nombrePart {
-			nombreExiste = true
-			break
-		}
-	}
-
-	if nombreExiste {
-
-		contenidoParticion := contenidoDisco[part.Inicio : part.Inicio+part.Tamanio]
-
-		if len(str.ParticionesMontadas) == 0 {
-			inicio := int(part.Inicio)
-			fin := int(part.Inicio + part.Tamanio)
-			superBoot := MontarSuperBoot(contenidoDisco[inicio:fin])
-			avd, bitmap := montarAVD(superBoot, contenidoParticion)
-			detalleD, bitMapDD := montarDetalleD(superBoot, contenidoParticion)
-			bloquesM, bitMapBloque := montarBloques(superBoot, contenidoParticion)
-			inodos, bitMapInodo := montarInodo(superBoot, contenidoParticion)
-
-			bloques := str.Bloques{BitMapAVD: bitmap, AVD: avd, BitMapDetalleD: bitMapDD, DetalleD: detalleD, Bloque: bloquesM, BitMapBloques: bitMapBloque, Inodo: inodos, BitMapInodo: bitMapInodo}
-			partMont := str.ParticionMontada{Particion: part, ContenidoParticion: contenidoParticion, Letra: 97, Numero: 1, Ruta: url, Superboot: superBoot, Bloques: bloques}
-			str.ParticionesMontadas = append(str.ParticionesMontadas, partMont)
-
-		} else {
-
-			n := 0
-			codigo := byte(97)
-			for i := 0; i < len(str.ParticionesMontadas); i++ {
-				if str.ParticionesMontadas[i].Ruta == url {
-					n++
-				}
-			}
-
-			for i := 0; i < len(str.ParticionesMontadas); i++ {
-				if str.ParticionesMontadas[i].Letra == codigo && str.ParticionesMontadas[i].Ruta == url {
-					codigo += byte(1)
-					i = 0
-				}
-			}
-
-			inicio := int(part.Inicio)
-			fin := int(part.Inicio + part.Tamanio)
-			superBoot := MontarSuperBoot(contenidoDisco[inicio:fin])
-			avd, bitmap := montarAVD(superBoot, contenidoParticion)
-			detalleD, bitMapDD := montarDetalleD(superBoot, contenidoParticion)
-			bloquesM, bitMapBloque := montarBloques(superBoot, contenidoParticion)
-			inodos, bitMapInodo := montarInodo(superBoot, contenidoParticion)
-			bloques := str.Bloques{BitMapAVD: bitmap, AVD: avd, BitMapDetalleD: bitMapDD, DetalleD: detalleD, Bloque: bloquesM, BitMapBloques: bitMapBloque, Inodo: inodos, BitMapInodo: bitMapInodo}
-			partMont := str.ParticionMontada{Particion: part, ContenidoParticion: contenidoParticion, Letra: 97, Numero: 1, Ruta: url, Superboot: superBoot, Bloques: bloques}
-			str.ParticionesMontadas = append(str.ParticionesMontadas, partMont)
-		}
-
-	} else {
+		fmt.Println(err)
+		fmt.Println("")
 		fmt.Println("*************************************************************")
 		fmt.Println("*                          ALERTA                           *")
 		fmt.Println("*************************************************************")
-		fmt.Println("*         LA PARTICION NO EXISTE DENTRO DEL DISCO           *")
+		fmt.Println("*                    EL DISCO NO EXISTE                     *")
 		fmt.Println("*************************************************************")
+		fmt.Println("")
+		discoExiste=false
+
+	}
+
+	if discoExiste {
+		mbr := MontarMBR(contenidoDisco)
+		var buffer bytes.Buffer
+		buffer.WriteString(nombre)
+		var nombrePart [16]byte
+		var nombreTemp = buffer.Bytes()
+		for i := 0; i < len(nombre); i++ {
+			nombrePart[i] = nombreTemp[i]
+		}
+
+		part := str.Particion{}
+		nombreExiste := false
+		for i := 0; i < 4; i++ {
+			if part = getParticion(mbr, i); part.Nombre == nombrePart {
+				nombreExiste = true
+				break
+			}
+		}
+
+		montada := false
+
+		nombreSalida := [16]byte{}
+		for i := 0; i < len(nombre) && i < 16; i++ {
+			nombreSalida[i] = nombre[i]
+		}
+
+		for i := 0; i < len(str.ParticionesMontadas); i++ {
+			if str.ParticionesMontadas[i].Ruta == url && str.ParticionesMontadas[i].Particion.Nombre == nombreSalida {
+				goto fin
+			}
+		}
+
+		if nombreExiste {
+
+			contenidoParticion := contenidoDisco[part.Inicio : part.Inicio+part.Tamanio]
+
+			if len(str.ParticionesMontadas) == 0 {
+				inicio := int(part.Inicio)
+				fin := int(part.Inicio + part.Tamanio)
+				superBoot := MontarSuperBoot(contenidoDisco[inicio:fin])
+				avd, bitmap := montarAVD(superBoot, contenidoParticion)
+				detalleD, bitMapDD := montarDetalleD(superBoot, contenidoParticion)
+				bloquesM, bitMapBloque := montarBloques(superBoot, contenidoParticion)
+				inodos, bitMapInodo := montarInodo(superBoot, contenidoParticion)
+
+				bloques := str.Bloques{BitMapAVD: bitmap, AVD: avd, BitMapDetalleD: bitMapDD, DetalleD: detalleD, Bloque: bloquesM, BitMapBloques: bitMapBloque, Inodo: inodos, BitMapInodo: bitMapInodo}
+				partMont := str.ParticionMontada{Particion: part, ContenidoParticion: contenidoParticion, Letra: 97, Numero: 1, Ruta: url, Superboot: superBoot, Bloques: bloques}
+				str.ParticionesMontadas = append(str.ParticionesMontadas, partMont)
+
+			} else {
+
+				n := 0
+				codigo := byte(97)
+				for i := 0; i < len(str.ParticionesMontadas); i++ {
+					if str.ParticionesMontadas[i].Ruta == url {
+						n++
+					}
+				}
+
+				for i := 0; i < len(str.ParticionesMontadas); i++ {
+					if str.ParticionesMontadas[i].Letra == codigo && str.ParticionesMontadas[i].Ruta == url {
+						codigo += byte(1)
+						i = 0
+					}
+				}
+
+				inicio := int(part.Inicio)
+				fin := int(part.Inicio + part.Tamanio)
+				superBoot := MontarSuperBoot(contenidoDisco[inicio:fin])
+				avd, bitmap := montarAVD(superBoot, contenidoParticion)
+				detalleD, bitMapDD := montarDetalleD(superBoot, contenidoParticion)
+				bloquesM, bitMapBloque := montarBloques(superBoot, contenidoParticion)
+				inodos, bitMapInodo := montarInodo(superBoot, contenidoParticion)
+				bloques := str.Bloques{BitMapAVD: bitmap, AVD: avd, BitMapDetalleD: bitMapDD, DetalleD: detalleD, Bloque: bloquesM, BitMapBloques: bitMapBloque, Inodo: inodos, BitMapInodo: bitMapInodo}
+				partMont := str.ParticionMontada{Particion: part, ContenidoParticion: contenidoParticion, Letra: 97, Numero: 1, Ruta: url, Superboot: superBoot, Bloques: bloques}
+				str.ParticionesMontadas = append(str.ParticionesMontadas, partMont)
+			}
+
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*               PARTICION MONTADA CON EXITO                 *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+
+		} else {
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*                          ALERTA                           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("*         LA PARTICION NO EXISTE DENTRO DEL DISCO           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		}
+
+	fin:
+
+		if montada {
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*                          ALERTA                           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("*             LA PARTICION YA ESTA MONTADA                  *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		}
 	}
 
 }
@@ -468,9 +563,19 @@ func DesmontarParticion(idParticion string) {
 	}
 
 	if desmontado {
-		fmt.Println("PARTICION DESMONTADA")
+		fmt.Println("")
+		fmt.Println("*************************************************************")
+		fmt.Println("*              LA PARTICION SE HA DESMONTADO                *")
+		fmt.Println("*************************************************************")
+		fmt.Println("")
 	} else {
-		fmt.Println("PARTICION NO ENCONTRADA")
+		fmt.Println("")
+		fmt.Println("*************************************************************")
+		fmt.Println("*                          ALERTA                           *")
+		fmt.Println("*************************************************************")
+		fmt.Println("*       LA PARTICION QUE DESEA MONTAR NO SE ENCUETRA        *")
+		fmt.Println("*************************************************************")
+		fmt.Println("")
 	}
 
 }
@@ -739,95 +844,107 @@ func CrearRoot(idPart string, idProp uint32, idGrupo uint32, permisos uint16) {
 			//EDITANDO BITMAP Y BLOQUE DONDE 138 ES EL FINAL DEL MBR
 			editarArchivo(part.Ruta, cadena, int64(inicioBitMap)+138)
 
+			fmt.Println("")
 			fmt.Println("*************************************************************")
 			fmt.Println("*                 CARPETA ROOT CREADA                       *")
 			fmt.Println("*************************************************************")
+			fmt.Println("")
 
 		} else {
 
+			fmt.Println("")
 			fmt.Println("*************************************************************")
 			fmt.Println("*                        ALERTA                             *")
 			fmt.Println("*************************************************************")
 			fmt.Println("*                EL DIRECCTORIO YA EXISTE                   *")
 			fmt.Println("*************************************************************")
+			fmt.Println("")
 
 		}
 
 	} else {
 
+		fmt.Println("")
 		fmt.Println("*************************************************************")
 		fmt.Println("*                        ALERTA                             *")
 		fmt.Println("*************************************************************")
 		fmt.Println("*                  PARTICION NO EXISTE                      *")
 		fmt.Println("*************************************************************")
+		fmt.Println("")
 
 	}
 }
 
 //
-func CrearAVDInicio(part str.ParticionMontada, ruta []string, idProp uint32, idGrupo uint32, permisos uint16) (uint32, bool) {
+func CrearAVDInicio(idPart string, ruta []string, idProp uint32, idGrupo uint32, permisos uint16) (uint32, bool) {
 
-	nombresDirect := [][20]byte{}
-
-	for i := 0; i < len(ruta); i++ {
-		nombresDirect = append(nombresDirect, convertirNombreASlice(convertirStringASlice(ruta[i])))
-	}
-
-	apuntador, ultimo, indice := buscarAVD(part.Bloques.AVD, nombresDirect, 0, part.Superboot.ApuntadorAVD)
-
-	exitoAVD := false
-	avdNuevos := []uint32{}
+	part, existe := getParticionByID(idPart)
 	ultimoApuntadorEncontrado := uint32(0)
-
-	existe := false
-	for i := 0; i < len(part.Bloques.AVD); i++ {
-		if part.Bloques.AVD[i].Apuntador == ultimo {
-			if part.Bloques.AVD[i].Avd.NombreDirectorio == nombresDirect[len(nombresDirect)-1] {
-				existe = true
-			}
-			break
-		}
-	}
+	exitoAVD := false
 
 	if existe {
-		ultimoApuntadorEncontrado = ultimo
-	} else {
-		part, avdNuevos, exitoAVD = crearAVD(part, ultimo, indice, nombresDirect, idProp, idGrupo, permisos, avdNuevos)
-		ultimoApuntadorEncontrado = avdNuevos[len(avdNuevos)-1]
-	}
+		nombresDirect := [][20]byte{}
 
-	fmt.Println(ultimoApuntadorEncontrado)
+		for i := 0; i < len(ruta); i++ {
+			nombresDirect = append(nombresDirect, convertirNombreASlice(convertirStringASlice(ruta[i])))
+		}
 
-	if !exitoAVD {
-		fmt.Println("CARPETAS NO CREADAS")
-	}
+		apuntador, ultimo, indice := buscarAVD(part.Bloques.AVD, nombresDirect, 0, part.Superboot.ApuntadorAVD)
 
-	fmt.Println("APUNTADOR:", apuntador)
-	fmt.Println("ULTIMO ENCONTRADO:", ultimo)
-	fmt.Println("INDICE:", indice)
+		avdNuevos := []uint32{}
 
-	if exitoAVD {
-		var buffer bytes.Buffer
-		binary.Write(&buffer, binary.BigEndian, part.Superboot)
-		editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Particion.Inicio))
-		buffer.Reset()
-
-		binary.Write(&buffer, binary.BigEndian, part.Bloques.BitMapAVD)
-		editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Superboot.ApuntadorBitMapAVD+part.Particion.Inicio))
-		buffer.Reset()
-
+		existe := false
 		for i := 0; i < len(part.Bloques.AVD); i++ {
-			for j := 0; j < len(avdNuevos); j++ {
+			if part.Bloques.AVD[i].Apuntador == ultimo {
+				if part.Bloques.AVD[i].Avd.NombreDirectorio == nombresDirect[len(nombresDirect)-1] {
+					existe = true
+				}
+				break
+			}
+		}
 
-				if avdNuevos[j] == part.Bloques.AVD[i].Apuntador {
-					binary.Write(&buffer, binary.BigEndian, part.Bloques.AVD[i].Avd)
-					editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Bloques.AVD[i].Apuntador+part.Particion.Inicio))
-					buffer.Reset()
+		if existe {
+			ultimoApuntadorEncontrado = ultimo
+		} else {
+			part, avdNuevos, exitoAVD = crearAVD(part, ultimo, indice, nombresDirect, idProp, idGrupo, permisos, avdNuevos)
+			ultimoApuntadorEncontrado = avdNuevos[len(avdNuevos)-1]
+		}
+
+		fmt.Println(ultimoApuntadorEncontrado)
+
+		if !exitoAVD {
+			fmt.Println("CARPETAS NO CREADAS")
+		}
+
+		fmt.Println("APUNTADOR:", apuntador)
+		fmt.Println("ULTIMO ENCONTRADO:", ultimo)
+		fmt.Println("INDICE:", indice)
+
+		if exitoAVD {
+			var buffer bytes.Buffer
+			binary.Write(&buffer, binary.BigEndian, part.Superboot)
+			editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Particion.Inicio))
+			buffer.Reset()
+
+			binary.Write(&buffer, binary.BigEndian, part.Bloques.BitMapAVD)
+			editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Superboot.ApuntadorBitMapAVD+part.Particion.Inicio))
+			buffer.Reset()
+
+			for i := 0; i < len(part.Bloques.AVD); i++ {
+				for j := 0; j < len(avdNuevos); j++ {
+
+					if avdNuevos[j] == part.Bloques.AVD[i].Apuntador {
+						binary.Write(&buffer, binary.BigEndian, part.Bloques.AVD[i].Avd)
+						editarArchivo(part.Ruta, buffer.Bytes(), int64(part.Bloques.AVD[i].Apuntador+part.Particion.Inicio))
+						buffer.Reset()
+					}
+
 				}
 
 			}
-
 		}
+	} else {
+		exitoAVD = false
 	}
 
 	return ultimoApuntadorEncontrado, exitoAVD
@@ -953,147 +1070,6 @@ fin:
 	return part, avdM, exito
 }
 
-/*
-func crearDetalle(part str.ParticionMontada, ultimo uint32, avdAptr uint32, nombre [20]byte, idProp uint32, idGrupo uint32, permisos uint16, detalleD []uint32) {
-
-	n := 0
-	for i := 0; i < len(part.Bloques.BitMapDetalleD); i++ {
-		if part.Bloques.BitMapDetalleD[i] == 0 {
-			part.Bloques.BitMapDetalleD[i] = 1
-			part.Superboot.CantidadDetalleDirectLibres--
-			for j := i; j < len(part.Bloques.BitMapDetalleD); j++ {
-				if part.Bloques.BitMapDetalleD[j] == 0 {
-					part.Superboot.PrimerDetalleDirectLibre = part.Superboot.ApuntadorBitMapDetalleDirect + uint32(j)
-					break
-				}
-			}
-			break
-		}
-		n++
-	}
-
-	lleno := true
-
-	for i := 0; i < len(part.Bloques.AVD); i++ {
-
-		if part.Bloques.AVD[i].Apuntador == avdAptr {
-
-			nuevoApuntador := part.Superboot.ApuntadorDetalleDirect + uint32(n)*uint32(str.TamDetalleDirect)
-			for j := 0; j < len(part.Bloques.DetalleD); j++ {
-				if part.Bloques.DetalleD[j].Apuntador == nuevoApuntador {
-
-					dD := part.Bloques.DetalleD[j].DetalleD.Archivos
-					for k := 0; k < len(dD); k++ {
-
-						temp := [20]byte{}
-						if dD[k].Nombre == temp {
-
-							lleno = false
-						}
-
-					}
-					break
-				}
-			}
-
-			break
-		}
-
-	}
-
-	for i := 0; i < len(part.Bloques.DetalleD); i++ {
-		if part.Bloques.DetalleD[i].Apuntador == ultimo {
-
-			for j := 0; j < len(part.Bloques.AVD[i].Avd.SubAVD); j++ {
-				if part.Bloques.AVD[i].Avd.SubAVD[j] == 0 {
-					nuevoApuntador := part.Superboot.ApuntadorAVD + uint32(n)*uint32(str.TamAVD)
-					part.Bloques.AVD[i].Avd.SubAVD[j] = nuevoApuntador
-					lleno = false
-
-					fechaCreacion := generarFecha()
-					subAVD := [6]uint32{0, 0, 0, 0, 0, 0}
-
-					avd := str.AVD{FechaCreacion: fechaCreacion,
-						NombreDirectorio:       nombres[indice],
-						SubAVD:                 subAVD,
-						ApuntadorDetalleDirect: 0,
-						ApuntadorIndirecto:     0,
-						IDPropietario:          idProp,
-						IDGrupo:                idGrupo,
-						Permisos:               permisos}
-
-					avdMontada := str.AVD_Montada{Apuntador: nuevoApuntador, Avd: avd}
-					for k := 0; k < len(part.Bloques.AVD); k++ {
-						if part.Bloques.AVD[k].Apuntador == nuevoApuntador {
-							part.Bloques.AVD[k] = avdMontada
-							break
-						}
-					}
-
-					avdM = append(avdM, ultimo)
-					avdM = append(avdM, nuevoApuntador)
-					part, avdM = crearAVD(part, nuevoApuntador, indice+1, nombres, idProp, idGrupo, permisos, avdM)
-					goto fin
-				}
-			}
-			break
-		}
-
-	}
-
-	if lleno {
-
-		nuevoApuntador := part.Superboot.ApuntadorBitMapAVD + uint32(n)*uint32(str.TamAVD)
-		ultimo = nuevoApuntador
-		apuntadorD := uint32(0)
-		idPropietario := uint32(0)
-		idGrupoo := uint32(0)
-		permisoss := uint16(0)
-
-		for i := 0; i < len(part.Bloques.AVD); i++ {
-			if part.Bloques.AVD[i].Apuntador == ultimo {
-				part.Bloques.AVD[i].Avd.ApuntadorIndirecto = nuevoApuntador
-				apuntadorD = part.Bloques.AVD[i].Avd.ApuntadorDetalleDirect
-				idPropietario = part.Bloques.AVD[i].Avd.IDPropietario
-				idGrupoo = part.Bloques.AVD[i].Avd.IDGrupo
-				permisoss = part.Bloques.AVD[i].Avd.Permisos
-
-				break
-			}
-		}
-
-		fechaCreacion := generarFecha()
-		subAVD := [6]uint32{0, 0, 0, 0, 0, 0}
-
-		avd := str.AVD{FechaCreacion: fechaCreacion,
-			NombreDirectorio:       nombres[indice-1],
-			SubAVD:                 subAVD,
-			ApuntadorDetalleDirect: apuntadorD,
-			ApuntadorIndirecto:     0,
-			IDPropietario:          idPropietario,
-			IDGrupo:                idGrupoo,
-			Permisos:               permisoss}
-
-		avdMontada := str.AVD_Montada{Apuntador: nuevoApuntador, Avd: avd}
-		for i := 0; i < len(part.Bloques.AVD); i++ {
-			if part.Bloques.AVD[i].Apuntador == nuevoApuntador {
-				part.Bloques.AVD[i] = avdMontada
-				break
-			}
-		}
-
-		avdM = append(avdM, ultimo)
-		avdM = append(avdM, nuevoApuntador)
-		part, avdM = crearAVD(part, ultimo, indice+1, nombres, idProp, idGrupo, permisos, avdM)
-		goto fin
-
-	}
-
-fin:
-}
-
-*/
-
 func convertirStringADatos(datos []byte) (salida [25]byte) {
 
 	for i := 0; i < len(datos) && i < 25; i++ {
@@ -1140,7 +1116,7 @@ func CrearArchivo(idPart string, contenido string, ruta []string, nombreArchivo 
 
 		exitoAVD := false
 		ultimoCreado := uint32(0)
-		ultimoCreado, exitoAVD = CrearAVDInicio(part, ruta, idP, idG, perm)
+		ultimoCreado, exitoAVD = CrearAVDInicio(idPart, ruta, idP, idG, perm)
 
 		if ultimoCreado == ultimoEncontrado {
 			exitoAVD = true
@@ -1199,9 +1175,11 @@ func CrearArchivo(idPart string, contenido string, ruta []string, nombreArchivo 
 	}
 
 	if creada {
+		fmt.Println("")
 		fmt.Println("*************************************************************")
 		fmt.Println("*                      ARCHIVO CREADO                       *")
 		fmt.Println("*************************************************************")
+		fmt.Println("")
 	}
 
 	return creada
@@ -1498,10 +1476,6 @@ func buscarAVD(avd []str.AVD_Montada, nombres [][20]byte, indice int, apuntador 
 
 fin:
 	return apuntadorAVD, ultimoReconocido, indiceNombre
-
-}
-
-func editarBitMap() {
 
 }
 
@@ -1862,7 +1836,7 @@ func convertirBinario(numeros []byte) (numerosTraducidos uint32) {
 }
 
 //
-func crearGraficaMBR(contenidoDisco []byte) {
+func crearGraficaMBR() {
 
 	//mbr := MontarMBR(contenidoDisco)
 

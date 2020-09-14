@@ -39,8 +39,6 @@ func analizarcomando(lineacomandos string, inicial string) {
 
 		//comandos[i] = s.ToLower(comandos[i])
 
-		fmt.Println("ANALIZANDO ===========================================", comandos[i])
-
 		/*
 			if n == 0 && s.Contains(comandos[i], "\"") {
 				n = i
@@ -329,12 +327,13 @@ func analizarcomando(lineacomandos string, inicial string) {
 	}
 
 finEstados:
+	/*
 	//fmt.Println("----------------------")
 	for i := 0; i < len(comandosLeidos); i++ {
 		fmt.Println("comando: ", comandosLeidos[i].Nombre, "VALOR", comandosLeidos[i].Valor)
 	}
 	//fmt.Println("----------------------")
-
+	*/
 }
 
 func analizarParametros(comms []str.Comando) {
@@ -380,12 +379,14 @@ func analizarParametros(comms []str.Comando) {
 		tamanioTotal := tamanioDisco * unidad
 
 		if tamanioTotal <= int64(0) || tamanioTotal > 2147483647 || ruta == "" || nombre == "" {
+			fmt.Println("")
 			fmt.Println("*************************************************************")
 			fmt.Println("*                          ALERTA                           *")
 			fmt.Println("*************************************************************")
 			fmt.Println("*   EL TAMAÑO DEL DISCO, LA RUTA O EL NOMBRE DEL DISCO NO   *")
 			fmt.Println("*                  NOS SON VALIDOS                          *")
 			fmt.Println("*************************************************************")
+			fmt.Println("")
 
 		} else {
 			e.CrearDisco(tamanioTotal, ruta, nombre)
@@ -400,9 +401,11 @@ func analizarParametros(comms []str.Comando) {
 				buffer.WriteString("AQUI COMIENZA LA PARTICION UNO, ESPERO ESTO NO AUMENTE EL TAMAÑO DEL DISCO")
 				e.EditarArchivo(ruta+nombre, buffer.Bytes(), 138)
 			*/
+			fmt.Println("")
 			fmt.Println("*************************************************************")
 			fmt.Println("*              ¡DISCO CREADO CON EXITO!                     *")
 			fmt.Println("*************************************************************")
+			fmt.Println("")
 		}
 		break
 
@@ -481,21 +484,176 @@ func analizarParametros(comms []str.Comando) {
 
 		tamanioTotal := tamanioPart * unidad
 		if tamanioPart <= 0 || tamanioTotal > 2147483647 || ruta == "" || nombre == "" {
+			fmt.Println("")
 			fmt.Println("*************************************************************")
 			fmt.Println("*                          ALERTA                           *")
 			fmt.Println("*************************************************************")
 			fmt.Println("*   EL TAMAÑO DEL DISCO, LA RUTA O EL NOMBRE DEL DISCO NO   *")
 			fmt.Println("*                  NOS SON VALIDOS                          *")
 			fmt.Println("*************************************************************")
+			fmt.Println("")
 
 		} else {
-
 			e.CrearParticion(ruta, tipo, ajuste, tamanioTotal, nombrePart)
-			fmt.Println("*************************************************************")
-			fmt.Println("*              ¡PARTICION CREADA CON EXITO!                 *")
-			fmt.Println("*************************************************************")
 		}
 
+		break
+
+	case "rmdisk":
+
+		for i := 1; i < len(comms); i++ {
+			if comms[i].Nombre == "-path" {
+				e.EliminarDisco(comms[i].Valor)
+			}
+		}
+
+		break
+
+	case "mkfile":
+
+		id := ""
+		ruta := ""
+		size := 0
+
+		for i := 0; i < len(comms); i++ {
+
+			if comms[i].Nombre == "-size" {
+				sizee, err := conv.ParseInt(comms[i].Valor, 10, 64)
+				size = int(sizee)
+				if err != nil {
+					panic(err)
+				}
+
+			} else if comms[i].Nombre == "-id" {
+
+				id = comms[i].Valor
+
+			} else if comms[i].Nombre == "-path" {
+
+				if s.Contains(comms[i].Valor, "\"") {
+					nuevoS := s.Replace(comms[i].Valor, "\"", "", 2)
+					ruta = nuevoS
+				} else {
+					ruta = comms[i].Valor
+				}
+			}
+
+		}
+
+		contenido := ""
+		n := byte(97)
+		for i := 0; i < size; i++ {
+			contenido += fmt.Sprintf("%c", n)
+			if n == 122 {
+				n = 96
+			}
+			n++
+		}
+
+		carpetas := s.Split(ruta, "/")
+		nombreA := carpetas[len(carpetas)-1]
+		carpetas = carpetas[0 : len(carpetas)-2]
+
+		creada := false
+
+		creada = e.CrearArchivo(id, contenido, carpetas, nombreA, 1, 1, 777)
+
+		if creada {
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*              ¡ARCHIVO CREADO CON EXITO!                   *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		} else {
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*                          ALERTA                           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("*               EL ARHIVO NO SE HA CREADO                   *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		}
+
+		break
+
+	case "mkdir":
+
+		id := ""
+		ruta := ""
+
+		for i := 0; i < len(comms); i++ {
+
+			if comms[i].Nombre == "-id" {
+
+				id = comms[i].Valor
+
+			} else if comms[i].Nombre == "-path" {
+
+				if s.Contains(comms[i].Valor, "\"") {
+					nuevoS := s.Replace(comms[i].Valor, "\"", "", 2)
+					ruta = nuevoS
+				} else {
+					ruta = comms[i].Valor
+				}
+			}
+
+		}
+
+		carpetas := s.Split(ruta, "/")
+
+		creada := false
+
+		_, creada = e.CrearAVDInicio(id, carpetas, 1, 1, 777)
+
+		if creada {
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*              ¡ARCHIVO CREADO CON EXITO!                   *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		} else {
+			fmt.Println("")
+			fmt.Println("*************************************************************")
+			fmt.Println("*                          ALERTA                           *")
+			fmt.Println("*************************************************************")
+			fmt.Println("*               EL ARHIVO NO SE HA CREADO                   *")
+			fmt.Println("*************************************************************")
+			fmt.Println("")
+		}
+
+		break
+
+	case "mount":
+
+		nombre := ""
+		ruta := ""
+
+		for i := 0; i < len(comms); i++ {
+			if comms[i].Nombre == "-name" {
+				nombre = comms[i].Valor
+			} else if comms[i].Nombre == "-path" {
+				if s.Contains(comms[i].Valor, "\"") {
+					nuevoS := s.Replace(comms[i].Valor, "\"", "", 2)
+					ruta = nuevoS
+				} else {
+					ruta = comms[i].Valor
+				}
+			}
+		}
+
+		e.MontarParticion(ruta, nombre)
+		break
+
+	case "unmount":
+
+		id := ""
+		for i := 0; i < len(comms); i++ {
+			if comms[i].Nombre == "-id" {
+				id = comms[i].Valor
+			}
+		}
+
+		e.DesmontarParticion(id)
 		break
 
 	}
